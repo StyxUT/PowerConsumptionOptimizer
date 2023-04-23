@@ -43,7 +43,7 @@ namespace TeslaControl
                     sleepDurationProvider: (retry) => TimeSpan.FromSeconds(10 * retry),
                     onRetry: (ex, waitTime, retryNum, context) =>
                     {
-                        _logger.LogDebug($"TeslaControl - Retry {retryNum} for {context.OperationKey} due to {ex.Message} \n\t\t next retry in {waitTime.TotalSeconds} seconds");
+                        _logger.LogDebug($"TeslaControl - Retry {retryNum} for {context.OperationKey} due to {ex.Message}\n\t\t next retry in {waitTime.TotalSeconds} seconds");
 
                         if (ex.Message.Contains("invalid bearer token"))
                         { ManageAccessToken(); }
@@ -61,7 +61,9 @@ namespace TeslaControl
             lock (tokenLock)
             {
                 _logger.LogDebug("TeslaControl - Refreshing Tesla access token");
-                _teslaRefreshToken = retryOnException.ExecuteAsync(action => _teslaAPI.RefreshTokenAsync(_client, RefreshToken), context: new Context($"{System.Reflection.MethodBase.GetCurrentMethod()}")).Result;
+                _teslaRefreshToken = retryOnException.ExecuteAsync(action => _teslaAPI.RefreshTokenAsync(_client, RefreshToken), context: new Context("ManageAccessToken")).Result;
+
+
 
                 TeslaAccessToken.AccessToken = _teslaRefreshToken.AccessToken;
                 TeslaAccessToken.ExpiresIn = _teslaRefreshToken.ExpiresIn;
@@ -78,36 +80,36 @@ namespace TeslaControl
         private async void WakeUpVehicle()
         {
             _logger.LogDebug("TeslaControl - Waking up vehicle");
-            var vehicle = retryOnException.ExecuteAsync(action => _teslaAPI.WakeUpAsync(_client, VehicleId), context: new Context($"{System.Reflection.MethodBase.GetCurrentMethod()}")).Result;
+            var vehicle = retryOnException.ExecuteAsync(action => _teslaAPI.WakeUpAsync(_client, VehicleId), context: new Context("WakeUpVehicle")).Result;
         }
 
         public async Task<List<Vehicle>> GetAllVehiclesAsync()
         {
-            return await retryOnException.ExecuteAsync<List<Vehicle>>(async action => await _teslaAPI.GetAllVehiclesAsync(_client), context: new Context($"{System.Reflection.MethodBase.GetCurrentMethod()}"));
+            return await retryOnException.ExecuteAsync<List<Vehicle>>(async action => await _teslaAPI.GetAllVehiclesAsync(_client), context: new Context("GetAllVehiclesAsync"));
         }
 
         public async Task<ChargeState> GetVehicleChargeStateAsync(string vehicleId)
         {
             VehicleId = vehicleId;
-            return await retryOnException.ExecuteAsync<ChargeState>(async action => await _teslaAPI.GetVehicleChargeStateAsync(_client, vehicleId), context: new Context($"{System.Reflection.MethodBase.GetCurrentMethod()}"));
+            return await retryOnException.ExecuteAsync<ChargeState>(async action => await _teslaAPI.GetVehicleChargeStateAsync(_client, vehicleId), context: new Context("GetVehicleChargeStateAsync"));
         }
 
         public async Task<CommandResponse> ChargeStartAsync(string vehicleId)
         {
             VehicleId = vehicleId;
-            return await retryOnException.ExecuteAsync<CommandResponse>(async action => await _teslaAPI.ChargeStartAsync(_client, vehicleId), context: new Context($"{System.Reflection.MethodBase.GetCurrentMethod()}"));
+            return await retryOnException.ExecuteAsync<CommandResponse>(async action => await _teslaAPI.ChargeStartAsync(_client, vehicleId), context: new Context("ChargeStartAsync"));
         }
 
         public async Task<CommandResponse> ChargeStopAsync(string vehicleId)
         {
             VehicleId = vehicleId;
-            return await retryOnException.ExecuteAsync(async action => await _teslaAPI.ChargeStopAsync(_client, vehicleId), context: new Context($"{System.Reflection.MethodBase.GetCurrentMethod()}"));
+            return await retryOnException.ExecuteAsync(async action => await _teslaAPI.ChargeStopAsync(_client, vehicleId), context: new Context("ChargeStopAsync"));
         }
 
         public async Task<CommandResponse> SetChargingAmpsAsync(string vehicleId, int chargingAmps)
         {
             VehicleId = vehicleId;
-            return await retryOnException.ExecuteAsync(async action => await _teslaAPI.SetChargingAmpsAsync(_client, vehicleId, chargingAmps), context: new Context($"{System.Reflection.MethodBase.GetCurrentMethod()}"));
+            return await retryOnException.ExecuteAsync(async action => await _teslaAPI.SetChargingAmpsAsync(_client, vehicleId, chargingAmps), context: new Context("SetChargingAmpsAsync"));
         }
     }
 }
