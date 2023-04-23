@@ -3,6 +3,7 @@ using Polly;
 using TeslaAPI;
 using TeslaAPI.Models;
 using TeslaAPI.Models.Response;
+using TeslaAPI.Models.Vehicles;
 
 namespace TeslaControl
 {
@@ -63,8 +64,6 @@ namespace TeslaControl
                 _logger.LogDebug("TeslaControl - Refreshing Tesla access token");
                 _teslaRefreshToken = retryOnException.ExecuteAsync(action => _teslaAPI.RefreshTokenAsync(_client, RefreshToken), context: new Context("ManageAccessToken")).Result;
 
-
-
                 TeslaAccessToken.AccessToken = _teslaRefreshToken.AccessToken;
                 TeslaAccessToken.ExpiresIn = _teslaRefreshToken.ExpiresIn;
 
@@ -91,13 +90,14 @@ namespace TeslaControl
         public async Task<ChargeState> GetVehicleChargeStateAsync(string vehicleId)
         {
             VehicleId = vehicleId;
-            return await retryOnException.ExecuteAsync<ChargeState>(async action => await _teslaAPI.GetVehicleChargeStateAsync(_client, vehicleId), context: new Context("GetVehicleChargeStateAsync"));
+            var result = await retryOnException.ExecuteAsync<VehicleData>(async action => await _teslaAPI.GetVehicleDataAsync(_client, vehicleId), context: new Context("GetVehicleChargeStateAsync"));
+            return result.ChargeState;
         }
 
         public async Task<CommandResponse> ChargeStartAsync(string vehicleId)
         {
             VehicleId = vehicleId;
-            return await retryOnException.ExecuteAsync<CommandResponse>(async action => await _teslaAPI.ChargeStartAsync(_client, vehicleId), context: new Context("ChargeStartAsync"));
+            return await retryOnException.ExecuteAsync(async action => await _teslaAPI.ChargeStartAsync(_client, vehicleId), context: new Context("ChargeStartAsync"));
         }
 
         public async Task<CommandResponse> ChargeStopAsync(string vehicleId)

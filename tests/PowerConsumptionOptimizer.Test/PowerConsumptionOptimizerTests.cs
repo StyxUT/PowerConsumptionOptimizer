@@ -43,7 +43,7 @@ namespace PowerConsumptionOptimizer.Tests
         public void PowerConsumptionOptimizer_ChangeChargeRate_IsFalse(int desiredAmps, int chargeAmps, int chargeLimitStateOfCharge, int batteryLevel, string chargingState)
         {
             //arrange
-            var chargeState = new TeslaAPI.Models.ChargeState();
+            var chargeState = new TeslaAPI.Models.Vehicles.ChargeState();
             chargeState.ChargeAmps = chargeAmps; // current charging amps
             chargeState.ChargeLimitStateOfCharge = chargeLimitStateOfCharge; // charge limit
             chargeState.BatteryLevel = batteryLevel; // current charge level
@@ -68,7 +68,7 @@ namespace PowerConsumptionOptimizer.Tests
         public void PowerConsumptionOptimizer_ChangeChargeRate_IsTrue(int desiredAmps, int chargeAmps, int chargeLimitStateOfCharge, int batteryLevel, string chargingState)
         {
             //arrange
-            var chargeState = new TeslaAPI.Models.ChargeState();
+            var chargeState = new TeslaAPI.Models.Vehicles.ChargeState();
             chargeState.ChargeAmps = chargeAmps; // current charging amps
             chargeState.ChargeLimitStateOfCharge = chargeLimitStateOfCharge; // charge limit
             chargeState.BatteryLevel = batteryLevel; // current charge level
@@ -93,7 +93,7 @@ namespace PowerConsumptionOptimizer.Tests
         public void PowerConsumptionOptimizer_RefreshVehicleChargeState_IsTrue(int previousNetPowerProduction, int netPowerProduction, string chargingState)
         {
             //arrange
-            var chargeState = new TeslaAPI.Models.ChargeState();
+            var chargeState = new TeslaAPI.Models.Vehicles.ChargeState();
             chargeState.ChargerVoltage = 240;
             chargeState.ChargingState = chargingState;
             chargeState.BatteryLevel = 50;
@@ -118,7 +118,7 @@ namespace PowerConsumptionOptimizer.Tests
         public void PowerConsumptionOptimizer_RefreshVehicleChargeState_IsFalse(int previousNetPowerProduction, int netPowerProduction, string chargingState)
         {
             //arrange
-            var chargeState = new TeslaAPI.Models.ChargeState();
+            var chargeState = new TeslaAPI.Models.Vehicles.ChargeState();
             chargeState.ChargerVoltage = 240;
             chargeState.ChargingState = chargingState;
             chargeState.BatteryLevel = 50;
@@ -147,12 +147,12 @@ namespace PowerConsumptionOptimizer.Tests
             var v1 = new Vehicle { Name = "test vehicle 1", Id = "1" };
             var v2 = new Vehicle { Name = "test vehicle 2", Id = "2" };
 
-            v1.ChargeState = new TeslaAPI.Models.ChargeState();
+            v1.ChargeState = new TeslaAPI.Models.Vehicles.ChargeState();
             v1.ChargeState.BatteryLevel = v1_batteryLevel;
             v1.ChargeState.ChargeLimitStateOfCharge = v1_chargeLimitStateOfCharge;
             v1.IsPriority = v1_isPriority;
 
-            v2.ChargeState = new TeslaAPI.Models.ChargeState();
+            v2.ChargeState = new TeslaAPI.Models.Vehicles.ChargeState();
             v2.ChargeState.BatteryLevel = v2_batteryLevel;
             v2.ChargeState.ChargeLimitStateOfCharge = v2_chargeLimitStateOfCharge;
 
@@ -178,12 +178,12 @@ namespace PowerConsumptionOptimizer.Tests
             var v1 = new Vehicle { Name = "test vehicle 1", Id = "1" };
             var v2 = new Vehicle { Name = "test vehicle 2", Id = "2" };
 
-            v1.ChargeState = new TeslaAPI.Models.ChargeState();
+            v1.ChargeState = new TeslaAPI.Models.Vehicles.ChargeState();
             v1.ChargeState.BatteryLevel = v1_batteryLevel;
             v1.ChargeState.ChargeLimitStateOfCharge = v1_chargeLimitStateOfCharge;
             v1.IsPriority = v1_isPriority;
 
-            v2.ChargeState = new TeslaAPI.Models.ChargeState();
+            v2.ChargeState = new TeslaAPI.Models.Vehicles.ChargeState();
             v2.ChargeState.BatteryLevel = v2_batteryLevel;
             v2.ChargeState.ChargeLimitStateOfCharge = v2_chargeLimitStateOfCharge;
 

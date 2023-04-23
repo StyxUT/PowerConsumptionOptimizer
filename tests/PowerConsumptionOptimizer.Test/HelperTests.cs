@@ -57,7 +57,7 @@ namespace PowerConsumptionOptimizer.Test
         {
             //arrange
             Vehicle vehicle = new Vehicle { Name = "test vehicle", Id = "123456"};
-            vehicle.ChargeState = new TeslaAPI.Models.ChargeState();
+            vehicle.ChargeState = new TeslaAPI.Models.Vehicles.ChargeState();
             vehicle.ChargeState.ChargerVoltage = currentVoltage;
             vehicle.ChargeState.ChargeAmps = currentAmps;
             vehicle.ChargeState.ChargingState = chargingState;

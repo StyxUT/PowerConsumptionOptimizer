@@ -2,7 +2,7 @@
 {
     public interface IVehicle
     {
-        TeslaAPI.Models.ChargeState ChargeState { get; set; }
+        TeslaAPI.Models.Vehicles.ChargeState ChargeState { get; set; }
         string Id { get; init; }
         bool IsPriority { get; set; }
         string Name { get; init; }
