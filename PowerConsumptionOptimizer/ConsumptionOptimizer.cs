@@ -72,16 +72,8 @@ namespace PowerConsumptionOptimizer
                         tasks.Add(Task.Run(() => RefreshVehicleChargePriority(vehicles, 30), tokenSource.Token));
                     }
 
-                    //tasks.Add(Task.Run(() => RefreshNetPowerProduction(vehicles, 1), tokenSource.Token));
+                    tasks.Add(Task.Run(() => RefreshNetPowerProduction(vehicles, 1), tokenSource.Token));
 
-                    //solarIrradianceNextHour = null; // having this prevents a race condition where the application goes to sleep before SolarIrradiance is updated
-                    //tasks.Add(Task.Run(() => RefreshSolarIrradianceNextHour(120), tokenSource.Token));
-                    //delay until solarIrradianceNexHour has been updated for the first time
-                    //while (solarIrradianceNextHour == null)
-                    //{
-                    //    _logger.LogDebug($"Waiting for SolarIrradianceNextHour refresh");
-                    //    await Task.Delay(TimeSpan.FromSeconds(5));
-                    //}
                     tasks.Add(Task.Run(() => DetermineMonitorCharging(vehicles, 61)));
 
                     //wait until all the tasks in the list are completed

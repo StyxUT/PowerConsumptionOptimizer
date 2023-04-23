@@ -299,7 +299,8 @@
                 case "Mostly sunny":
                     return IconPhrase.MostlySunny;
             }
-            throw new Exception("Cannot unmarshal type IconPhrase");
+            return "Not Implemented";
+            //throw new Exception("Cannot unmarshal type IconPhrase");
         }
 
         public override void WriteJson(JsonWriter writer, object untypedValue, JsonSerializer serializer)
@@ -309,20 +310,21 @@
                 serializer.Serialize(writer, null);
                 return;
             }
-            var value = (IconPhrase)untypedValue;
-            switch (value)
-            {
-                case IconPhrase.Cloudy:
-                    serializer.Serialize(writer, "Cloudy");
-                    return;
-                case IconPhrase.MostlyClear:
-                    serializer.Serialize(writer, "Mostly clear");
-                    return;
-                case IconPhrase.MostlySunny:
-                    serializer.Serialize(writer, "Mostly sunny");
-                    return;
-            }
-            throw new Exception("Cannot marshal type IconPhrase");
+            //var value = (IconPhrase)untypedValue;
+            //switch (value)
+            //{
+            //    case IconPhrase.Cloudy:
+            //        serializer.Serialize(writer, "Cloudy");
+            //        return;
+            //    case IconPhrase.MostlyClear:
+            //        serializer.Serialize(writer, "Mostly clear");
+            //        return;
+            //    case IconPhrase.MostlySunny:
+            //        serializer.Serialize(writer, "Mostly sunny");
+            //        return;
+            //}
+            //throw new Exception("Cannot marshal type IconPhrase");
+            return;
         }
 
         public static readonly IconPhraseConverter Singleton = new IconPhraseConverter();
@@ -343,7 +345,8 @@
                 case "Moderate":
                     return UvIndexText.Moderate;
             }
-            throw new Exception("Cannot unmarshal type UvIndexText");
+            return "Not Implemented";
+             //throw new Exception("Cannot unmarshal type UvIndexText");
         }
 
         public override void WriteJson(JsonWriter writer, object untypedValue, JsonSerializer serializer)
@@ -363,7 +366,8 @@
                     serializer.Serialize(writer, "Moderate");
                     return;
             }
-            throw new Exception("Cannot marshal type UvIndexText");
+            return;
+            //throw new Exception("Cannot marshal type UvIndexText");
         }
 
         public static readonly UvIndexTextConverter Singleton = new UvIndexTextConverter();
