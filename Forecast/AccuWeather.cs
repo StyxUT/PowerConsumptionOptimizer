@@ -61,7 +61,7 @@ namespace Forecast
 
             ManageForecast();
 
-            var currentDateTime = DateTime.Now;
+            var currentDateTime = DateTime.UtcNow;
             return _forecast.FirstOrDefault(forecast => forecast.DateTime > currentDateTime).SolarIrradiance.Value;
         }
 
@@ -74,7 +74,7 @@ namespace Forecast
             _logger.LogDebug("AccuWeather - GetSolarIrradianceByHour");
             ManageForecast();
 
-            var currentDateTime = DateTime.Now;
+            var currentDateTime = DateTime.UtcNow;
             return _forecast
                 .Where(forecast => forecast.DateTime > currentDateTime)
                 .Select(forecast => forecast.SolarIrradiance.Value).ToList<double>();
@@ -127,7 +127,7 @@ namespace Forecast
         {
             StringBuilder stringBuilder = new();
             bool refreshForecast = false;
-            var now = DateTime.Now;
+            var now = DateTime.UtcNow;
 
             // get forcast if forecast is null or greater than 3 hours old
             if (_forecast == null)

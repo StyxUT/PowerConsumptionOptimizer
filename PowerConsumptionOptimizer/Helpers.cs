@@ -32,10 +32,10 @@ namespace PowerConsumptionOptimizer
         /// </summary>
         /// <param name="irradiances">list of SolarIrradiance values by hour</param>
         /// <returns>sleep duration in hours</returns>
-        public static int DetermineSleepDuration(List<double> irradiances, COSettings pcoSettings)
+        public static int DetermineSleepDuration(List<double> irradiances, COSettings pcoSettings, HelperSettings helperSettings)
         {
             // increment until the next hour where the SolarIrradiationThreshold is met
-            double solarIrradianceThreshold = Helpers.GetSolarIrradianceThreshold(pcoSettings);
+            double solarIrradianceThreshold = Helpers.GetSolarIrradianceThreshold(pcoSettings, helperSettings);
             int sleepHours = 0;
 
             foreach (double irradiance in irradiances)
@@ -99,9 +99,9 @@ namespace PowerConsumptionOptimizer
         /// </summary>
         /// <param name="pcoSettings">app settings</param>
         /// <returns>current solar irradiance threshold</returns>
-        public static double GetSolarIrradianceThreshold(COSettings pcoSettings)
+        public static double GetSolarIrradianceThreshold(COSettings pcoSettings, HelperSettings helperSettings)
         {
-            DateTime dateTime = DateTime.Now;
+            DateTime dateTime = DateTime.UtcNow.AddHours(helperSettings.UTCOffset);
             return dateTime.ToString("tt", System.Globalization.CultureInfo.InvariantCulture) == "AM" ? pcoSettings.AmSolarIrradianceThreshold : pcoSettings.PmSolarIrradianceThreshold;
         }
     }

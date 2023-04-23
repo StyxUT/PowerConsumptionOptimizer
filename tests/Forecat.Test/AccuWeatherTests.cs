@@ -13,7 +13,7 @@ namespace Forecast.Tests
         public void AccuWeather_SolarIrradianceNextHour_SkipsToCurrentHour()
         {
             //arrange
-            DateTime dateTime = DateTime.Now;
+            DateTime dateTime = DateTime.UtcNow;
             accuWeather.ManageForecast();
             //the first and second forecasts will be skipped because they are in the past
             accuWeather._forecast[2].DateTime = dateTime.AddHours(3);
@@ -31,7 +31,7 @@ namespace Forecast.Tests
         public void AccuWeather_SolarIrradianceNextHour_ReturnsAllFutureSolarIrradiances()
         {
             //arrange
-            DateTime dateTime = DateTime.Now;
+            DateTime dateTime = DateTime.UtcNow;
             accuWeather.ManageForecast();
             //the first two forecasts will be skipped because they are in the past
             accuWeather._forecast[2].DateTime = dateTime.AddHours(3);
@@ -45,7 +45,7 @@ namespace Forecast.Tests
 
             //assert
             Assert.Equal(340.2, result.First<double>()); //test first result
-            Assert.Equal(0, result.Last<double>()); //test last result
+            Assert.Equal(287.5, result.Last<double>()); //test last result
         }
     }
 }

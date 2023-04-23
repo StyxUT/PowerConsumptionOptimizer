@@ -25,7 +25,7 @@ namespace PowerConsumptionOptimizer
         private static CancellationToken cancelationToken;
 
         private static bool exit = false;
-        private static double? solarIrradianceNextHour;
+        //private static double? solarIrradianceNextHour;
 
         public ConsumptionOptimizer(ILogger<ConsumptionOptimizer> logger, IConfiguration configuration, IPowerProduction powerProduction, IForecast forecast, ITeslaControl teslaControl)
         {
@@ -72,16 +72,16 @@ namespace PowerConsumptionOptimizer
                         tasks.Add(Task.Run(() => RefreshVehicleChargePriority(vehicles, 30), tokenSource.Token));
                     }
 
-                    tasks.Add(Task.Run(() => RefreshNetPowerProduction(vehicles, 1), tokenSource.Token));
+                    //tasks.Add(Task.Run(() => RefreshNetPowerProduction(vehicles, 1), tokenSource.Token));
 
-                    solarIrradianceNextHour = null; // having this prevents a race condition where the application goes to sleep before SolarIrradiance is updated
-                    tasks.Add(Task.Run(() => RefreshSolarIrradianceNextHour(120), tokenSource.Token));
+                    //solarIrradianceNextHour = null; // having this prevents a race condition where the application goes to sleep before SolarIrradiance is updated
+                    //tasks.Add(Task.Run(() => RefreshSolarIrradianceNextHour(120), tokenSource.Token));
                     //delay until solarIrradianceNexHour has been updated for the first time
-                    while (solarIrradianceNextHour == null)
-                    {
-                        _logger.LogDebug($"Waiting for SolarIrradianceNextHour refresh");
-                        await Task.Delay(TimeSpan.FromSeconds(5));
-                    }
+                    //while (solarIrradianceNextHour == null)
+                    //{
+                    //    _logger.LogDebug($"Waiting for SolarIrradianceNextHour refresh");
+                    //    await Task.Delay(TimeSpan.FromSeconds(5));
+                    //}
                     tasks.Add(Task.Run(() => DetermineMonitorCharging(vehicles, 61)));
 
                     //wait until all the tasks in the list are completed
@@ -91,7 +91,7 @@ namespace PowerConsumptionOptimizer
                 {
                     // do nothing and continue on
 
-                    //TODO: maybe foreach though the exceptions and log which tasks were canceled
+                    //TODO: consider foreach though the exceptions and log which tasks were canceled
                     _logger.LogError($"ExceptionType: {ex.GetType().Name}; ExceptionMessage: {@ex.Message}");
                     _logger.LogDebug($"Continuing after TaskCanceledException...");
                 }
@@ -118,19 +118,18 @@ namespace PowerConsumptionOptimizer
         /// <returns>task</returns>
         private async Task DetermineMonitorCharging(List<Vehicle> vehicles, int sleepDuration)
         {
-            _forecast.GetSolarIrradianceNextHour();
             bool monitor = true;
-            double solarIrradianceThreshold = Helpers.GetSolarIrradianceThreshold(coSettings);
+            double solarIrradianceThreshold = Helpers.GetSolarIrradianceThreshold(coSettings, helperSettings);
 
             while (!exit && monitor)
             {
                 StringBuilder output = new();
                 output.Append($"Power Consumption Optimizer - ");
 
-                if (solarIrradianceNextHour <= solarIrradianceThreshold)
+                if (_forecast.GetSolarIrradianceNextHour() <= solarIrradianceThreshold)
                 {
                     //pause until the hour before reaching the SolarIrradianceThreshold
-                    sleepDuration = (Helpers.DetermineSleepDuration(_forecast.GetSolarIrradianceByHour(), coSettings) - 1) * 60;
+                    sleepDuration = (Helpers.DetermineSleepDuration(_forecast.GetSolarIrradianceByHour(), coSettings, helperSettings) - 1) * 60;
                     tokenSource.Cancel(); //cancel tasks
 
                     output.AppendLine($"Pause active monitoring until {DateTime.Now.AddMinutes(sleepDuration)}");
@@ -161,18 +160,18 @@ namespace PowerConsumptionOptimizer
         /// Refreshed the current projected solar irradiance over the next 12 hours
         /// </summary>
         /// <param name="sleepDuration">milliseconds to sleep between refresh cycles</param>
-        private void RefreshSolarIrradianceNextHour(int sleepDuration)
-        {
-            while (!cancelationToken.IsCancellationRequested)
-            {
-                solarIrradianceNextHour = _forecast.GetSolarIrradianceNextHour();
+        //private void RefreshSolarIrradianceNextHour(int sleepDuration)
+        //{
+        //    while (!cancelationToken.IsCancellationRequested)
+        //    {
+        //        solarIrradianceNextHour = _forecast.GetSolarIrradianceNextHour();
 
-                cancelationToken.WaitHandle.WaitOne(TimeSpan.FromMinutes(sleepDuration));
-            }
-        }
+        //        cancelationToken.WaitHandle.WaitOne(TimeSpan.FromMinutes(sleepDuration));
+        //    }
+        //}
 
         /// <summary>
-        /// Cycles though a list of vehicles and if needed refreshes their Charge State
+        /// Cycles though a list of vehicles and if needed, refreshes their Charge State
         /// </summary>
         /// <param name="vehicles"></param>
         /// <param name="sleepDuration">second so sleep between loops</param>

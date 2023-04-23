@@ -10,9 +10,7 @@ using TeslaAPI;
 using System.Reflection;
 
 
-//TODO: Reduce the number of calls to AccuWeather
 //TODO: Consider if vehicle charge level is below override level but there is no solar production (app would be paused)
-//TODO: Use future time (am/pm) to determine threshold for given SolarIrradiance threshold
 //TODO: Use different cancelation token for program exit?
 //TODO: Update & Add tests for new PCO methods
 //TODO: Update & Add tests for new Helper methods

@@ -11,6 +11,7 @@ namespace ConfigurationSettings
         public int DefaultChargerVoltage { get; set; }
         public int ChargeOverridePercenage { get; set; }
         public int ChargeOverrideAmps { get; set; }
+        public int UTCOffset { get; set; }
     }
 
     //public class VehicleSettings
