@@ -1,13 +1,13 @@
-using Forecast;
+//using Forecast;
 using PowerConsumptionOptimizer;
 using PowerProduction;
 using Serilog;
 using Serilog.Events;
 using Serilog.Formatting.Json;
-using System.Runtime.CompilerServices;
-using TeslaControl;
-using TeslaAPI;
 using System.Reflection;
+using System.Runtime.CompilerServices;
+using TeslaAPI;
+using TeslaControl;
 
 
 //TODO: Consider if vehicle charge level is below override level but there is no solar production (app would be paused)
@@ -27,7 +27,7 @@ using IHost host = CreateHostBuilder().Build();
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console(restrictedToMinimumLevel: LogEventLevel.Verbose)
-    .WriteTo.File(new JsonFormatter(), "./logs/log_.json", 
+    .WriteTo.File(new JsonFormatter(), "./logs/log_.json",
         restrictedToMinimumLevel: LogEventLevel.Warning,
         retainedFileTimeLimit: TimeSpan.FromDays(7),
         rollingInterval: RollingInterval.Day, shared: true)
@@ -48,7 +48,7 @@ static IHostBuilder CreateHostBuilder() =>
         {
             config.SetBasePath(Directory.GetCurrentDirectory());
             config.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
-            config.AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production"}.json", optional: true);
+            config.AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production"}.json", optional: true, reloadOnChange: true);
             config.AddUserSecrets(Assembly.GetExecutingAssembly(), true);
             config.AddEnvironmentVariables();
         })
@@ -67,7 +67,7 @@ static IHostBuilder CreateHostBuilder() =>
                     var teslaApi = serviceProvider.GetService<ITeslaAPI>();
                     return new TeslaControl.TeslaControl(logger, teslaApi, configuration["TeslaRefreshToken"]);
                 });
-            services.AddSingleton<IForecast, AccuWeather>();
+            //services.AddSingleton<IForecast, AccuWeather>();
             services.AddTransient<IPowerProduction, EnphaseLocal>();
             services.AddSingleton<IConsumptionOptimizer, ConsumptionOptimizer>();
 

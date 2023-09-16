@@ -1,7 +1,4 @@
-﻿
-using PowerConsumptionOptimizer;
-
-namespace ConfigurationSettings
+﻿namespace ConfigurationSettings
 {
     public class HelperSettings
     {

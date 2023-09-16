@@ -1,5 +1,5 @@
 ﻿using ConfigurationSettings;
-using Forecast;
+//using Forecast;
 using PowerProduction;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -13,7 +13,7 @@ namespace PowerConsumptionOptimizer
         private readonly ILogger<ConsumptionOptimizer> _logger;
         private readonly IConfiguration _configuration;
         private readonly IPowerProduction _powerProduction;
-        private readonly IForecast _forecast;
+        //private readonly IForecast _forecast;
         private readonly ITeslaControl _teslaControl;
 
         internal List<Vehicle> vehicles;
@@ -27,12 +27,12 @@ namespace PowerConsumptionOptimizer
         private static bool exit = false;
         //private static double? solarIrradianceNextHour;
 
-        public ConsumptionOptimizer(ILogger<ConsumptionOptimizer> logger, IConfiguration configuration, IPowerProduction powerProduction, IForecast forecast, ITeslaControl teslaControl)
+        public ConsumptionOptimizer(ILogger<ConsumptionOptimizer> logger, IConfiguration configuration, IPowerProduction powerProduction, ITeslaControl teslaControl)
         {
             _logger = logger;
             _configuration = configuration;
             _powerProduction = powerProduction;
-            _forecast = forecast;
+            //_forecast = forecast;
             _teslaControl = teslaControl;
 
             vehicles = new();
@@ -111,24 +111,26 @@ namespace PowerConsumptionOptimizer
         private async Task DetermineMonitorCharging(List<Vehicle> vehicles, int sleepDuration)
         {
             bool monitor = true;
-            double solarIrradianceThreshold = Helpers.GetSolarIrradianceThreshold(coSettings, helperSettings);
+            //double solarIrradianceThreshold = Helpers.GetSolarIrradianceThreshold(coSettings, helperSettings);
 
             while (!exit && monitor)
             {
                 StringBuilder output = new();
                 output.Append($"Power Consumption Optimizer - ");
 
-                if (_forecast.GetSolarIrradianceNextHour() <= solarIrradianceThreshold)
-                {
-                    //pause until the hour before reaching the SolarIrradianceThreshold
-                    sleepDuration = (Helpers.DetermineSleepDuration(_forecast.GetSolarIrradianceByHour(), coSettings, helperSettings) - 1) * 60;
-                    tokenSource.Cancel(); //cancel tasks
+                //if (_forecast.GetSolarIrradianceNextHour() <= solarIrradianceThreshold)
+                //{
+                //    //pause until the hour before reaching the SolarIrradianceThreshold
+                //    sleepDuration = (Helpers.DetermineSleepDuration(_forecast.GetSolarIrradianceByHour(), coSettings, helperSettings) - 1) * 60;
+                //    tokenSource.Cancel(); //cancel tasks
 
-                    output.AppendLine($"Pause active monitoring until {DateTime.Now.AddMinutes(sleepDuration)}");
-                    output.AppendLine($"\t SolarIrradiance is less than {solarIrradianceThreshold} over the next {sleepDuration / 60} hour(s)");
-                    monitor = false;
-                }
-                else if (GetPriorityVehicle() is null)
+                //    output.AppendLine($"Pause active monitoring until {DateTime.Now.AddMinutes(sleepDuration)}");
+                //    output.AppendLine($"\t SolarIrradiance is less than {solarIrradianceThreshold} over the next {sleepDuration / 60} hour(s)");
+                //    monitor = false;
+                //}
+                //else if (GetPriorityVehicle() is null)
+                //{
+                if (GetPriorityVehicle() is null)
                 {
                     tokenSource.Cancel(); //cancel tasks
                     sleepDuration *= 2;
@@ -140,7 +142,7 @@ namespace PowerConsumptionOptimizer
                 else
                 {
                     output.AppendLine("Continuing active monitoring");
-                    output.AppendLine($"\t SolarIrradiance is greater than {solarIrradianceThreshold} over the next hour");
+                    //output.AppendLine($"\t SolarIrradiance is greater than {solarIrradianceThreshold} over the next hour");
                 }
                 _logger.LogInformation(output.ToString().TrimEnd('\n'));
                 output.Clear();
@@ -318,7 +320,7 @@ namespace PowerConsumptionOptimizer
             }
 
             vehicle.RefreshChargeState = changeCharging; // if charging is changed then refresh the chargeState
-            _logger.LogInformation($"{vehicle.Name} - QueueChangeChargeRate: {changeCharging}\n {reason.ToString().TrimEnd('\n')}");
+            _logger.LogInformation($"{vehicle.Name} - ChangeChargeRate: {changeCharging}\n {reason.ToString().TrimEnd('\n')}");
             return changeCharging;
         }
 
@@ -329,6 +331,7 @@ namespace PowerConsumptionOptimizer
         /// <param name="previousNetPowerProduction">previous net power production</param>
         /// <param name="chargerVoltage">current voltage provided by charger</param>
         /// <returns>true or false</returns>
+        [Obsolete]
         internal void RefreshVehicleChargeState(Vehicle vehicle, double? previousNetPowerProduction, double? netPowerProduction)
         {
             StringBuilder reason = new();

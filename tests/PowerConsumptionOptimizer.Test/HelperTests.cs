@@ -2,10 +2,9 @@ using ConfigurationSettings;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Moq;
-using System.Collections.Generic;
 using Xunit;
 
-namespace PowerConsumptionOptimizer.Test
+namespace PowerConsumptionOptimizer.Tests
 {
     public class HelperTests
     {
@@ -56,14 +55,14 @@ namespace PowerConsumptionOptimizer.Test
         public void Helpers_CalculateDesiredAmps(int currentVoltage, int currentAmps, double netPowerProduction, string chargingState, int correctDesiredAmps, bool isPriority = true, int batteryLevel = 50)
         {
             //arrange
-            Vehicle vehicle = new Vehicle { Name = "test vehicle", Id = "123456"};
+            Vehicle vehicle = new Vehicle { Name = "test vehicle", Id = "123456" };
             vehicle.ChargeState = new TeslaAPI.Models.Vehicles.ChargeState();
             vehicle.ChargeState.ChargerVoltage = currentVoltage;
             vehicle.ChargeState.ChargeAmps = currentAmps;
             vehicle.ChargeState.ChargingState = chargingState;
             vehicle.ChargeState.BatteryLevel = batteryLevel;
             vehicle.IsPriority = isPriority;
- 
+
             helperSettings.WattBuffer = 500;
             helperSettings.ChargeOverrideAmps = 10;
             helperSettings.ChargeOverridePercenage = 20;

@@ -53,7 +53,7 @@ namespace TeslaControl
                         else
                         { ManageAccessToken(); WakeUpVehicle(); };
                     });
-            
+
             ManageAccessToken();
         }
 

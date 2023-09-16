@@ -1,5 +1,4 @@
-﻿using TeslaAPI.Models;
-using TeslaAPI.Models.Response;
+﻿using TeslaAPI.Models.Response;
 using TeslaAPI.Models.Vehicles;
 
 namespace TeslaControl

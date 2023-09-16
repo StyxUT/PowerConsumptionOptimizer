@@ -18,7 +18,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PowerProduction\PowerProduction.csproj" />
-    <ProjectReference Include="..\Forecast\Forecast.csproj" />
     <ProjectReference Include="..\TeslaControl\TeslaControl.csproj" />
   </ItemGroup>
 

@@ -63,7 +63,7 @@ namespace PowerProduction
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("Applicaiton/json"));
 
             var path = $"{BaseURL}/production.json";
-            HttpResponseMessage response = await retryOnException.ExecuteAsync(async action => await client.GetAsync(path), new Context($"{ System.Reflection.MethodBase.GetCurrentMethod() }"));
+            HttpResponseMessage response = await retryOnException.ExecuteAsync(async action => await client.GetAsync(path), new Context($"{System.Reflection.MethodBase.GetCurrentMethod()}"));
 
             StringBuilder stringBuilder = new();
 

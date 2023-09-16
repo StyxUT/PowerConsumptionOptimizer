@@ -51,14 +51,14 @@ namespace PowerProduction
             ///  access_token is valid for ‘1 day’
             /// </summary>
             [JsonProperty("access_token")]
-            public string AccessToken { get; set; } 
+            public string AccessToken { get; set; }
             /// <summary>
             /// refresh_token is valid for ‘1 week’
             /// </summary>
             [JsonProperty("token_type")]
             public string TokenType { get; set; }
             [JsonProperty("refresh_token")]
-            public string RefreshToken { get; set; } 
+            public string RefreshToken { get; set; }
             [JsonProperty("expires_in")]
             public int ExpiresIn { get; set; }
             [JsonProperty("scope")]
