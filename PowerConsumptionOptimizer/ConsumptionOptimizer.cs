@@ -67,14 +67,14 @@ namespace PowerConsumptionOptimizer
                         }
                     });
 
-                    var resultLog = DetermineChargingPriority(); // required at startup or vehicle(s) will appear to be unavailable for charging
-
                     if (vehicles.Count > 0)
                     {
                         tasks.Add(Task.Run(() => RefreshVehicleChargePriority(vehicles, 30), tokenSource.Token));
                     }
 
                     tasks.Add(Task.Run(() => RefreshNetPowerProduction(vehicles, 1), tokenSource.Token));
+                    
+                    Thread.Sleep(20000); //sleep to allow RefreshVehicleChargePriority to complete before starting to montior
                     tasks.Add(Task.Run(() => DetermineMonitorCharging(vehicles, 61)));
 
                     //wait until all the tasks in the list are completed
