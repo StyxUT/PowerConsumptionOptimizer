@@ -67,8 +67,8 @@ namespace PowerConsumptionOptimizer
                         }
                     });
 
-                    DetermineChargingPriority(); // required at startup when vehicle(s) do not having charging priority
-                    
+                    var resultLog = DetermineChargingPriority(); // required at startup or vehicle(s) will appear to be unavailable for charging
+
                     if (vehicles.Count > 0)
                     {
                         tasks.Add(Task.Run(() => RefreshVehicleChargePriority(vehicles, 30), tokenSource.Token));
