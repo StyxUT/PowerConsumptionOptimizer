@@ -111,12 +111,18 @@ namespace PowerConsumptionOptimizer
         private async Task DetermineMonitorCharging(List<Vehicle> vehicles, int sleepDuration)
         {
             bool monitor = true;
+            TimeSpan morningUTC = new TimeSpan(13, 0, 0);
+            TimeSpan nightUTC = new TimeSpan(01, 0, 0);
+
+
             //double solarIrradianceThreshold = Helpers.GetSolarIrradianceThreshold(coSettings, helperSettings);
 
             while (!exit && monitor)
             {
                 StringBuilder output = new();
                 output.Append($"Power Consumption Optimizer - ");
+                TimeSpan now = DateTime.UtcNow.TimeOfDay;
+
 
                 //if (_forecast.GetSolarIrradianceNextHour() <= solarIrradianceThreshold)
                 //{
@@ -130,12 +136,22 @@ namespace PowerConsumptionOptimizer
                 //}
                 //else if (GetPriorityVehicle() is null)
                 //{
-                if (GetPriorityVehicle() is null)
+
+
+                if (Helpers.TimeBetween(DateTime.UtcNow, nightUTC, morningUTC))
+                {
+                    tokenSource.Cancel(); //cancel tasks
+
+                    output.AppendLine($"Pause active monitoring until {DateTime.UtcNow.AddMinutes(sleepDuration)} UTC");
+                    output.AppendLine($"\t reduced nighttime monitoring");
+                    monitor = false;
+                }
+                else if (GetPriorityVehicle() is null)
                 {
                     tokenSource.Cancel(); //cancel tasks
                     sleepDuration *= 2;
 
-                    output.AppendLine($"Pause active monitoring until {DateTime.Now.AddMinutes(sleepDuration)}");
+                    output.AppendLine($"Pause active monitoring until {DateTime.UtcNow.AddMinutes(sleepDuration)} UTC");
                     output.AppendLine($"\t all vehicle(s) are either at their charge limit or unavailable for charging");
                     monitor = false;
                 }
