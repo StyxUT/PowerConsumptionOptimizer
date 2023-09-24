@@ -269,8 +269,8 @@ namespace PowerConsumptionOptimizer
                 _teslaControl.SetChargingAmpsAsync(vehicle.Id, 5);
                 vehicle.ChargeState.ChargingState = "Stopped";
                 vehicle.RefreshChargeState = true;
-                output.AppendLine($"\t {vehicle.Name} - Desired Amps is {desiredAmps} ... charging stopped");
-                output.AppendLine($"\t {vehicle.Name} - SetChargingAmps to default");
+                output.AppendLine($"{vehicle.Name} - Desired Amps is {desiredAmps} ... charging stopped");
+                output.AppendLine($"{vehicle.Name} - SetChargingAmps to default");
             }
             else
             {
@@ -281,9 +281,9 @@ namespace PowerConsumptionOptimizer
                     _teslaControl.ChargeStartAsync(vehicle.Id);
                     vehicle.ChargeState.ChargingState = "Charging";
                     vehicle.RefreshChargeState = true;
-                    output.AppendLine($"\t {vehicle.Name} - Desired Amps is {desiredAmps} ... charging started");
+                    output.AppendLine($"{vehicle.Name} - Desired Amps is {desiredAmps} ... charging started");
                 }
-                output.AppendLine($"\t {vehicle.Name} - SetChargingAmps to: {desiredAmps}");
+                output.AppendLine($"{vehicle.Name} - SetChargingAmps to: {desiredAmps}");
             }
             _logger.LogInformation(output.ToString().TrimEnd('\n'));
         }
@@ -317,10 +317,10 @@ namespace PowerConsumptionOptimizer
                 reason.AppendLine("\t available amps is < 5 and charging is already stopped");
             }
 
-            if (vehicle.ChargeState.ChargingState == "Stopped" && vehicle.ChargeState.ChargeAmps != 5)
+            if ((vehicle.ChargeState.ChargingState == "Stopped" || vehicle.ChargeState.ChargingState == "Complete") && vehicle.ChargeState.ChargeAmps != 5)
             {
                 changeCharging = true;
-                reason.AppendLine("\t charging is stopped and charge amps is not set to 5");
+                reason.AppendLine("\t charging is stopped or complete and charge amps is not set to 5");
             }
 
             if (changeCharging == true)

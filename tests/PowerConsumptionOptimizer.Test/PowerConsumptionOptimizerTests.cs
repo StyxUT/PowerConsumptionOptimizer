@@ -65,6 +65,7 @@ namespace PowerConsumptionOptimizer.Tests
         [InlineData(5, 45, 99, 99, "Stopped", true)] // desired amps is >= 5 and charging is not enabled
         [InlineData(5, 5, 75, 74, "Stopped", true)] // desired amps is 5 and charging is not enabled   
         [InlineData(5, 5, 75, 74, "Charging", false)] // vehicle is not priority but is charging   
+        [InlineData(4, 20, 65, 80, "Complete", false)] // vehicle is not priority, charging is complete, and amps is not 5
         public void PowerConsumptionOptimizer_ChangeChargeRate_IsTrue(int desiredAmps, int chargeAmps, int chargeLimitStateOfCharge, int batteryLevel, string chargingState, bool isPriority)
         {
             //arrange
