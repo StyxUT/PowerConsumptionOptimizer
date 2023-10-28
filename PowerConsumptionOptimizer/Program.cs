@@ -67,7 +67,8 @@ static IHostBuilder CreateHostBuilder() =>
                 loggingBuilder.AddSerilog(dispose: true);
             });
             services.AddSingleton(configuration);
-            services.AddTransient<ITeslaAPI, TeslaAPI.TeslaAPI>();
+            //services.AddTransient<ITeslaAPI, TeslaAPI.TeslaAPI>();
+            services.AddTeslaApi();
 
             // Register TeslaControl using IOptionsSnapshot
             services.AddSingleton<ITeslaControl, TeslaControl.TeslaControl>(serviceProvider =>

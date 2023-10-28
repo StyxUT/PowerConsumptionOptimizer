@@ -47,11 +47,18 @@ namespace TeslaControl
                         _logger.LogDebug($"TeslaControl - Retry {retryNum} for {context.OperationKey} due to {ex.Message}\n\t\t next retry in {waitTime.TotalSeconds} seconds");
 
                         if (ex.Message.Contains("invalid bearer token"))
-                        { ManageAccessToken(); }
+                        {
+                            _logger.LogDebug($"TeslaControl - invalid bearer token");
+                            ManageAccessToken(); 
+                        }
                         else if (ex.Message.Contains("vehicle unavailable"))
                         { WakeUpVehicle(); }
                         else
-                        { ManageAccessToken(); WakeUpVehicle(); };
+                        {
+                            _logger.LogDebug($"TeslaControl - unanticipated error");
+                            ManageAccessToken(); 
+                            WakeUpVehicle(); 
+                        };
                     });
 
             ManageAccessToken();
@@ -61,14 +68,19 @@ namespace TeslaControl
         {
             lock (tokenLock)
             {
-                _logger.LogDebug("TeslaControl - Refreshing Tesla access token");
+                _logger.LogDebug("TeslaControl - ManageAccessToken - Refreshing Tesla access token");
+                _logger.LogDebug($"TeslaControl - ManageAccessToken - RefreshToken: ${RefreshToken}");
+                _logger.LogDebug($"TeslaControl - ManageAccessToken - _client.BaseAddress: ${_client.BaseAddress}");
+
                 _teslaRefreshToken = retryOnException.ExecuteAsync(action => _teslaAPI.RefreshTokenAsync(_client, RefreshToken), context: new Context("ManageAccessToken")).Result;
 
                 TeslaAccessToken.AccessToken = _teslaRefreshToken.AccessToken;
                 TeslaAccessToken.ExpiresIn = _teslaRefreshToken.ExpiresIn;
+                _logger.LogDebug($"TeslaControl - ManageAccessToken - TeslaAccessToken.AccessToken: ${TeslaAccessToken.AccessToken}");
 
                 TeslaBearerToken.AccessToken = _teslaRefreshToken.AccessToken;
                 TeslaBearerToken.ExpiresIn = _teslaRefreshToken.ExpiresIn;
+                _logger.LogDebug($"TeslaControl - ManageAccessToken - TeslaBearerToken.AccessToken: ${TeslaBearerToken.AccessToken}");
 
                 // update authorization header
                 _client.DefaultRequestHeaders.Remove("Authorization");
