@@ -1,8 +1,10 @@
 ﻿using ConfigurationSettings;
+using Microsoft.Extensions.Options;
 //using Forecast;
 using PowerProduction;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading;
 using TeslaControl;
 
 [assembly: InternalsVisibleTo("PowerConsumptionOptimizer.Tests")]
@@ -11,15 +13,16 @@ namespace PowerConsumptionOptimizer
     public class ConsumptionOptimizer : IConsumptionOptimizer
     {
         private readonly ILogger<ConsumptionOptimizer> _logger;
-        private readonly IConfiguration _configuration;
+        private readonly IOptionsMonitor<HelperSettings> _helperSettings;
+        private readonly IOptionsSnapshot<VehicleSettings> _vehicleSettings;
         private readonly IPowerProduction _powerProduction;
         //private readonly IForecast _forecast;
         private readonly ITeslaControl _teslaControl;
 
         internal List<Vehicle> vehicles;
 
-        private static HelperSettings helperSettings;
-        private static COSettings coSettings;
+
+        //private static ConsumptionOptimizerSettings coSettings;
 
         private static CancellationTokenSource tokenSource;
         private static CancellationToken cancelationToken;
@@ -27,20 +30,17 @@ namespace PowerConsumptionOptimizer
         private static bool exit = false;
         //private static double? solarIrradianceNextHour;
 
-        public ConsumptionOptimizer(ILogger<ConsumptionOptimizer> logger, IConfiguration configuration, IPowerProduction powerProduction, ITeslaControl teslaControl)
+        public ConsumptionOptimizer(ILogger<ConsumptionOptimizer> logger, IOptionsMonitor<HelperSettings> helperSettings, IOptionsSnapshot<VehicleSettings> vehicleSettings, IPowerProduction powerProduction, ITeslaControl teslaControl)
         {
             _logger = logger;
-            _configuration = configuration;
+            _helperSettings = helperSettings;
+            _vehicleSettings = vehicleSettings;
             _powerProduction = powerProduction;
+ 
             //_forecast = forecast;
             _teslaControl = teslaControl;
 
-            vehicles = new();
-            _configuration.GetSection("Vehicles").Bind(vehicles);
-            coSettings = new();
-            _configuration.GetSection("ConsumptionOptimizer").Bind(coSettings);
-            helperSettings = new();
-            _configuration.GetSection("Helpers").Bind(helperSettings);
+            vehicles = _vehicleSettings.Value.Vehicles;
         }
 
         public async Task Optimize()
@@ -55,6 +55,13 @@ namespace PowerConsumptionOptimizer
                     tokenSource = new();
                     cancelationToken = tokenSource.Token;
 
+                    if (vehicles.Count == 0)
+                    { 
+                        _logger.LogError("No vehicles configured.\n Exiting...");
+                        exit = true;
+                        System.Environment.Exit(1);
+                    }
+
                     tasks.Add(Task.Run(() => RefreshVehicleChargeState(vehicles, 15), tokenSource.Token));
                     Thread.Sleep(5000); //sleep for a short time to improve messaging
                     await Parallel.ForEachAsync(vehicles, async (vehicle, cancelationToken) =>
@@ -67,14 +74,12 @@ namespace PowerConsumptionOptimizer
                         }
                     });
 
-                    if (vehicles.Count > 0)
-                    {
-                        tasks.Add(Task.Run(() => RefreshVehicleChargePriority(vehicles, 30), tokenSource.Token));
-                    }
-
+                    tasks.Add(Task.Run(() => RefreshVehicleChargePriority(vehicles, 30), tokenSource.Token));
+ 
                     tasks.Add(Task.Run(() => RefreshNetPowerProduction(vehicles, 1), tokenSource.Token));
-                    
-                    Thread.Sleep(20000); //sleep to allow RefreshVehicleChargePriority to complete before starting to montior
+
+                    // Called to ensure charge priority has been set prior to monitoring to prevent unintended sleeping when application starts
+                    RefreshVehicleChargePriority(vehicles, 1);
                     tasks.Add(Task.Run(() => DetermineMonitorCharging(vehicles, 61)));
 
                     //wait until all the tasks in the list are completed
@@ -233,6 +238,7 @@ namespace PowerConsumptionOptimizer
 
             while (!cancelationToken.IsCancellationRequested)
             {
+                _logger.LogInformation($"Watt buffer: {_helperSettings.CurrentValue.WattBuffer}");
                 var netPowerProduction = (double)_powerProduction.GetNetPowerProduction();
                 var powerProductionChange = previousNetPowerProduction - netPowerProduction;
 
@@ -240,7 +246,7 @@ namespace PowerConsumptionOptimizer
 
                 foreach (Vehicle vehicle in vehicles)
                 {
-                    desiredAmps = Helpers.CalculateDesiredAmps(helperSettings, vehicle, netPowerProduction);
+                    desiredAmps = Helpers.CalculateDesiredAmps(_helperSettings, vehicle, netPowerProduction);
                     if (ChangeChargeRate(vehicle, desiredAmps))
                     {
                         vehicle.RefreshChargeState = true;
@@ -391,7 +397,7 @@ namespace PowerConsumptionOptimizer
                 vehicle.RefreshChargeState = true;
             }
             // vehicle is not charging and net power production can support 5 or more amps
-            else if (vehicle.IsPriority && vehicle.ChargeState.ChargingState == "Stopped" && Math.Abs((double)powerProductionChange) > vehicle.ChargeState.ChargerVoltage && Helpers.CalculateDesiredAmps(helperSettings, vehicle, netPowerProduction) >= 5)
+            else if (vehicle.IsPriority && vehicle.ChargeState.ChargingState == "Stopped" && Math.Abs((double)powerProductionChange) > vehicle.ChargeState.ChargerVoltage && Helpers.CalculateDesiredAmps(_helperSettings, vehicle, netPowerProduction) >= 5)
             {
                 reason.AppendLine("\t there is enough change in net power production to start charging");
                 vehicle.RefreshChargeState = true;

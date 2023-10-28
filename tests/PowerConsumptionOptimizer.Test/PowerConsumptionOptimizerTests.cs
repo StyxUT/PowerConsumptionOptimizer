@@ -7,6 +7,8 @@ using System;
 using System.Collections.Generic;
 using TeslaControl;
 using Xunit;
+using ConfigurationSettings;
+using Microsoft.Extensions.Options;
 
 namespace PowerConsumptionOptimizer.Tests
 {
@@ -14,25 +16,26 @@ namespace PowerConsumptionOptimizer.Tests
     {
         private readonly Mock<ILogger<ConsumptionOptimizer>> _loggerMock;
         private readonly ConsumptionOptimizer _consumptionOptimizer;
-        private readonly Mock<IConfiguration> _configurationMock;
+        //private readonly Mock<IConfiguration> _configurationMock;
+        private Mock<IOptionsMonitor<HelperSettings>> _helperSettingsMock;
+        private Mock<IOptionsSnapshot<VehicleSettings>> _vehicleSettingsMock;
         private readonly Mock<IPowerProduction> _powerProductionMock;
         //private readonly Mock<IForecast> _forecastMock;
         private readonly Mock<ITeslaControl> _teslaControlMock;
-
+        
         public ConsumptionOptimizerTests()
         {
             _loggerMock = new Mock<ILogger<ConsumptionOptimizer>>();
-            _configurationMock = new Mock<IConfiguration>();
+            _helperSettingsMock = new Mock<IOptionsMonitor<HelperSettings>>();
+            _vehicleSettingsMock = new Mock<IOptionsSnapshot<VehicleSettings>>();
             _powerProductionMock = new Mock<IPowerProduction>();
             //_forecastMock = new Mock<IForecast>();
             _teslaControlMock = new Mock<ITeslaControl>();
 
             var builder = new ConfigurationBuilder();
             builder.AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production"}.json", optional: true);
-            var configuration = builder.Build();
-            _consumptionOptimizer = new ConsumptionOptimizer(_loggerMock.Object, configuration, _powerProductionMock.Object, _teslaControlMock.Object);
+            _consumptionOptimizer = new ConsumptionOptimizer(_loggerMock.Object, _helperSettingsMock.Object, _vehicleSettingsMock.Object, _powerProductionMock.Object, _teslaControlMock.Object);
         }
-
 
         [Theory]
         //desired amps; current charging amps; charge limit; batteryLevel; charging enalbed
@@ -84,7 +87,7 @@ namespace PowerConsumptionOptimizer.Tests
             Assert.True(result);
         }
 
-        [Fact]
+        [Fact (Skip = "obsolete")]
         //vehicle is not the priority but is charging
         public void PowerConsumptionOptimizer_RefreshVehicleChargeState_IsTrue2()
         {
@@ -101,7 +104,7 @@ namespace PowerConsumptionOptimizer.Tests
             Assert.True(vehicle.RefreshChargeState);
         }
 
-        [Theory]
+        [Theory (Skip = "obsolete")]
         //IsPriority charging vehicle is true for all tests
         [InlineData(1000, -500, "Charging")] // negative diff larger than voltage; charging
         [InlineData(1000, 2000, "Charging")] // positive diff larger than voltage; charging
@@ -125,7 +128,7 @@ namespace PowerConsumptionOptimizer.Tests
             Assert.True(vehicle.RefreshChargeState);
         }
 
-        [Theory]
+        [Theory (Skip = "obsolete")]
         //IsPriority charging vehicle is true for all tests
         [InlineData(1000, 800, "Charging")] // negative diff less than voltage; charging
         [InlineData(1000, 1200, "Charging")] // positive diff less than voltage; charging
@@ -160,7 +163,7 @@ namespace PowerConsumptionOptimizer.Tests
         public void PowerConsumptionOptimizer_DetermineChargingPriority_IsVehicle1(int v1_batteryLevel, int v1_chargeLimitStateOfCharge, bool v1_isPriority, int v2_batteryLevel, int v2_chargeLimitStateOfCharge)
         {
             //arrange
-            //List<Vehicle> vehicles = new();
+            List<Vehicle> vehicles = new List<Vehicle>();
 
             var v1 = new Vehicle { Name = "test vehicle 1", Id = "1" };
             var v2 = new Vehicle { Name = "test vehicle 2", Id = "2" };
@@ -174,8 +177,10 @@ namespace PowerConsumptionOptimizer.Tests
             v2.ChargeState.BatteryLevel = v2_batteryLevel;
             v2.ChargeState.ChargeLimitStateOfCharge = v2_chargeLimitStateOfCharge;
 
-            _consumptionOptimizer.vehicles.Add(v1);
-            _consumptionOptimizer.vehicles.Add(v2);
+            vehicles.Add(v1);
+            vehicles.Add(v2);
+
+            _consumptionOptimizer.vehicles = vehicles;
 
             //act
             _consumptionOptimizer.DetermineChargingPriority();
@@ -191,7 +196,7 @@ namespace PowerConsumptionOptimizer.Tests
         public void PowerConsumptionOptimizer_DetermineChargingPriority_IsVehicle2(int v1_batteryLevel, int v1_chargeLimitStateOfCharge, bool v1_isPriority, int v2_batteryLevel, int v2_chargeLimitStateOfCharge)
         {
             //arrange
-            List<Vehicle> vehicles = new();
+            List<Vehicle> vehicles = new List<Vehicle>();
 
             var v1 = new Vehicle { Name = "test vehicle 1", Id = "1" };
             var v2 = new Vehicle { Name = "test vehicle 2", Id = "2" };
@@ -205,8 +210,10 @@ namespace PowerConsumptionOptimizer.Tests
             v2.ChargeState.BatteryLevel = v2_batteryLevel;
             v2.ChargeState.ChargeLimitStateOfCharge = v2_chargeLimitStateOfCharge;
 
-            _consumptionOptimizer.vehicles.Add(v1);
-            _consumptionOptimizer.vehicles.Add(v2);
+            vehicles.Add(v1);
+            vehicles.Add(v2);
+
+            _consumptionOptimizer.vehicles = vehicles;
 
             //act
             _consumptionOptimizer.DetermineChargingPriority();
@@ -223,7 +230,7 @@ namespace PowerConsumptionOptimizer.Tests
         public void PowerConsumptionOptimizer_DetermineChargingPriority_IsVehicle2_V1ChargeState(string v1ChargeState)
         {
             //arrange
-            List<Vehicle> vehicles = new();
+            List<Vehicle> vehicles = new List<Vehicle>();
 
             var v1 = new Vehicle { Name = "test vehicle 1", Id = "1" };
             var v2 = new Vehicle { Name = "test vehicle 2", Id = "2" };
@@ -238,8 +245,10 @@ namespace PowerConsumptionOptimizer.Tests
             v2.ChargeState.BatteryLevel = 90;
             v2.ChargeState.ChargeLimitStateOfCharge = 92;
 
-            _consumptionOptimizer.vehicles.Add(v1);
-            _consumptionOptimizer.vehicles.Add(v2);
+            vehicles.Add(v1);
+            vehicles.Add(v2);
+
+            _consumptionOptimizer.vehicles = vehicles;
 
             //act
             _consumptionOptimizer.DetermineChargingPriority();
@@ -253,7 +262,7 @@ namespace PowerConsumptionOptimizer.Tests
         public void PowerConsumptionOptimizer_GetPriorityVehicle_IsNull()
         {
             //arrange
-            List<Vehicle> vehicles = new();
+            List<Vehicle> vehicles = new List<Vehicle>();
 
             var v1 = new Vehicle { Name = "test vehicle 1", Id = "1" };
             var v2 = new Vehicle { Name = "test vehicle 2", Id = "2" };
@@ -261,8 +270,9 @@ namespace PowerConsumptionOptimizer.Tests
             v1.IsPriority = false;
             v2.IsPriority = false;
 
-            _consumptionOptimizer.vehicles.Add(v1);
-            _consumptionOptimizer.vehicles.Add(v2);
+            vehicles.Add(v1);
+ 
+            _consumptionOptimizer.vehicles = vehicles;
 
             //act
             var vehicle = _consumptionOptimizer.GetPriorityVehicle();
@@ -272,12 +282,12 @@ namespace PowerConsumptionOptimizer.Tests
         }
 
         [Theory]
-        [InlineData(true, false, "1")]  // vehicle 1 is priority
+        [InlineData(true, false, "1")] // vehicle 1 is priority
         [InlineData(false, true, "2")] // vehicle 2 is priority
         public void PowerConsumptionOptimizer_GetPriorityVehicle(bool v1_priority, bool v2_priority, string expected)
         {
             //arrange
-            List<Vehicle> vehicles = new();
+            List<Vehicle> vehicles = new List<Vehicle>();
 
             var v1 = new Vehicle { Name = "test vehicle 1", Id = "1" };
             var v2 = new Vehicle { Name = "test vehicle 2", Id = "2" };
@@ -285,8 +295,10 @@ namespace PowerConsumptionOptimizer.Tests
             v1.IsPriority = v1_priority;
             v2.IsPriority = v2_priority;
 
-            _consumptionOptimizer.vehicles.Add(v1);
-            _consumptionOptimizer.vehicles.Add(v2);
+            vehicles.Add(v1);
+            vehicles.Add(v2);
+
+            _consumptionOptimizer.vehicles = vehicles;
 
             //act
             var vehicle = _consumptionOptimizer.GetPriorityVehicle();

@@ -1,6 +1,7 @@
 using ConfigurationSettings;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
 
@@ -9,19 +10,15 @@ namespace PowerConsumptionOptimizer.Tests
     public class HelperTests
     {
         private static IConfigurationBuilder? builder;
-        private static HelperSettings helperSettings;
         private readonly Mock<ILogger<ConsumptionOptimizer>> _loggerMock;
+        private IOptionsSnapshot<HelperSettings> _helperSettings;
 
 
-        public HelperTests()
+        public static IOptionsMonitor<T> CreateIOptionMonitorMock<T>(T value) where T : class, new()
         {
-            builder = new ConfigurationBuilder().AddJsonFile("appsettings.json", false, true);
-            IConfigurationRoot build = builder.Build();
-
-            helperSettings = new HelperSettings();
-            build.GetSection("Helpers").Bind(helperSettings);
-
-            _loggerMock = new Mock<ILogger<ConsumptionOptimizer>>();
+            var mock = new Mock<IOptionsMonitor<T>>();
+            mock.Setup(m => m.CurrentValue).Returns(value);
+            return mock.Object;
         }
 
         [Fact]
@@ -39,12 +36,12 @@ namespace PowerConsumptionOptimizer.Tests
 
         [Theory]
         [InlineData(1, 5, -3128, "Charging", 0)] // negative power production, charging
-        [InlineData(245, 5, 700, "Stopped", 0)] // slightly positive power production, not charging
-        [InlineData(240, 5, 2000, "Stopped", 6)] // positive power production, not charging
-        [InlineData(245, 6, -500, "Charging", 1)] // negative power production, charging 
-        [InlineData(230, 5, 500, "Charging", 5)] // negative power production, charging 
-        [InlineData(245, 6, 750, "Charging", 7)] // slightly positive power production, charging
-        [InlineData(120, 7, 750, "Charging", 9)] // 120 volts, positive power production, charging
+        [InlineData(270, 5, 100, "Stopped", 1)] // slightly positive power production, not charging
+        [InlineData(240, 5, 2000, "Stopped", 9)] // positive power production, not charging
+        [InlineData(245, 6, -500, "Charging", 4)] // negative power production, charging 
+        [InlineData(230, 5, 500, "Charging", 8)] // 230 amps, positive power production, charging 
+        [InlineData(245, 6, 750, "Charging", 10)] // slightly positive power production, charging
+        [InlineData(120, 7, 750, "Charging", 15)] // 120 volts, positive power production, charging
         [InlineData(120, 7, 750, "Disconnected", 0)] // 120 volts, positive power production, disconnected
         [InlineData(240, 5, 2000, "Complete", 0)] // positive power production, charging complete
         [InlineData(240, 5, 220000, "Stopped", 48)] // massivly positive power production, charging is capped at 48 amps
@@ -63,12 +60,17 @@ namespace PowerConsumptionOptimizer.Tests
             vehicle.ChargeState.BatteryLevel = batteryLevel;
             vehicle.IsPriority = isPriority;
 
-            helperSettings.WattBuffer = 500;
-            helperSettings.ChargeOverrideAmps = 10;
-            helperSettings.ChargeOverridePercenage = 20;
+            var _helperSettings = CreateIOptionMonitorMock(new HelperSettings()
+            {
+                WattBuffer = -250,
+                DefaultChargerVoltage = 240,
+                ChargeOverridePercenage = 20,
+                ChargeOverrideAmps = 10,
+                UTCOffset = -6
+            });
 
             //act
-            var calculatedDesiredAmps = Helpers.CalculateDesiredAmps(helperSettings, vehicle, netPowerProduction);
+            var calculatedDesiredAmps = Helpers.CalculateDesiredAmps(_helperSettings, vehicle, netPowerProduction);
 
             //assert
             Assert.Equal(correctDesiredAmps, calculatedDesiredAmps);

@@ -1,4 +1,5 @@
 ﻿using ConfigurationSettings;
+using Microsoft.Extensions.Options;
 using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("PowerConsumptionOptimizer.Test")]
@@ -31,28 +32,29 @@ namespace PowerConsumptionOptimizer
         /// </summary>
         /// <param name="irradiances">list of SolarIrradiance values by hour</param>
         /// <returns>sleep duration in hours</returns>
-        public static int DetermineSleepDuration(List<double> irradiances, COSettings pcoSettings, HelperSettings helperSettings)
-        {
-            // increment until the next hour where the SolarIrradiationThreshold is met
-            double solarIrradianceThreshold = Helpers.GetSolarIrradianceThreshold(pcoSettings, helperSettings);
-            int sleepHours = 0;
+        //[Obsolete]
+        //public static int DetermineSleepDuration(List<double> irradiances, IOptionsSnapshot<ConsumptionOptimizerSettings> pcoSettings, IOptionsSnapshot<HelperSettings> helperSettings)
+        //{
+        //    // increment until the next hour where the SolarIrradiationThreshold is met
+        //    double solarIrradianceThreshold = Helpers.GetSolarIrradianceThreshold(pcoSettings.Value.AmSolarIrradianceThreshold, helperSettings);
+        //    int sleepHours = 0;
 
-            foreach (double irradiance in irradiances)
-            {
-                if (irradiance <= solarIrradianceThreshold)
-                {
-                    sleepHours++;
-                }
-                else
-                {
-                    break;
-                }
-            }
+        //    foreach (double irradiance in irradiances)
+        //    {
+        //        if (irradiance <= solarIrradianceThreshold)
+        //        {
+        //            sleepHours++;
+        //        }
+        //        else
+        //        {
+        //            break;
+        //        }
+        //    }
 
-            return sleepHours;
-        }
+        //    return sleepHours;
+        //}
 
-        internal static int CalculateDesiredAmps(HelperSettings helperSettings, Vehicle vehicle, double? netPowerProduction)
+        internal static int CalculateDesiredAmps(IOptionsMonitor<HelperSettings> helperSettings, Vehicle vehicle, double? netPowerProduction)
         {
             int currentAmps;
             int currentVoltage;
@@ -69,20 +71,20 @@ namespace PowerConsumptionOptimizer
             else if (vehicle.ChargeState.ChargingState == "Charging")
             {
                 currentAmps = vehicle.ChargeState.ChargeAmps;
-                currentVoltage = vehicle.ChargeState.ChargerVoltage < 100 ? helperSettings.DefaultChargerVoltage : vehicle.ChargeState.ChargerVoltage;
+                currentVoltage = vehicle.ChargeState.ChargerVoltage < 100 ? helperSettings.CurrentValue.DefaultChargerVoltage : vehicle.ChargeState.ChargerVoltage;
             }
             // if battery level is less than charge Override Percentage, charge at Charge Override Amps regardless of net power production
-            else if (vehicle.ChargeState.ChargingState == "Stopped" && vehicle.ChargeState.BatteryLevel <= helperSettings.ChargeOverridePercenage)
+            else if (vehicle.ChargeState.ChargingState == "Stopped" && vehicle.ChargeState.BatteryLevel <= helperSettings.CurrentValue.ChargeOverridePercenage)
             {
-                return helperSettings.ChargeOverrideAmps;
+                return helperSettings.CurrentValue.ChargeOverrideAmps;
             }
             else // able to charge but is stopped
             {
                 currentAmps = 0;
-                currentVoltage = helperSettings.DefaultChargerVoltage;
+                currentVoltage = helperSettings.CurrentValue.DefaultChargerVoltage;
             }
 
-            double wattsAvailable = ((double)netPowerProduction - helperSettings.WattBuffer) + (currentAmps * currentVoltage); //available - buffer + used by charger
+            double wattsAvailable = ((double)netPowerProduction - helperSettings.CurrentValue.WattBuffer) + (currentAmps * currentVoltage); //available - buffer + used by charger
             double desiredAmps = wattsAvailable / currentVoltage;
 
             if (desiredAmps >= 48)
@@ -98,7 +100,7 @@ namespace PowerConsumptionOptimizer
         /// </summary>
         /// <param name="pcoSettings">app settings</param>
         /// <returns>current solar irradiance threshold</returns>
-        public static double GetSolarIrradianceThreshold(COSettings pcoSettings, HelperSettings helperSettings)
+        public static double GetSolarIrradianceThreshold(ConsumptionOptimizerSettings pcoSettings, HelperSettings helperSettings)
         {
             DateTime dateTime = DateTime.UtcNow.AddHours(helperSettings.UTCOffset);
             return dateTime.ToString("tt", System.Globalization.CultureInfo.InvariantCulture) == "AM" ? pcoSettings.AmSolarIrradianceThreshold : pcoSettings.PmSolarIrradianceThreshold;

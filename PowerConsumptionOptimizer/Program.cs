@@ -1,4 +1,6 @@
 //using Forecast;
+using ConfigurationSettings;
+using Microsoft.Extensions.Options;
 using PowerConsumptionOptimizer;
 using PowerProduction;
 using Serilog;
@@ -55,21 +57,39 @@ static IHostBuilder CreateHostBuilder() =>
         .ConfigureServices((hostContext, services) =>
         {
             IConfiguration configuration = hostContext.Configuration;
+
+            services.Configure<TeslaSettings>(configuration.GetSection(nameof(TeslaSettings)));
+            services.Configure<HelperSettings>(configuration.GetSection(nameof(HelperSettings)));
+            services.Configure<VehicleSettings>(configuration.GetSection(nameof(VehicleSettings)));
+
             services.AddLogging(loggingBuilder =>
             {
                 loggingBuilder.AddSerilog(dispose: true);
             });
             services.AddSingleton(configuration);
             services.AddTransient<ITeslaAPI, TeslaAPI.TeslaAPI>();
+
+            // Register TeslaControl using IOptionsSnapshot
             services.AddSingleton<ITeslaControl, TeslaControl.TeslaControl>(serviceProvider =>
-                {
-                    var logger = serviceProvider.GetService<ILogger<TeslaControl.TeslaControl>>();
-                    var teslaApi = serviceProvider.GetService<ITeslaAPI>();
-                    return new TeslaControl.TeslaControl(logger, teslaApi, configuration["TeslaRefreshToken"]);
-                });
-            //services.AddSingleton<IForecast, AccuWeather>();
+            {
+                var logger = serviceProvider.GetService<ILogger<TeslaControl.TeslaControl>>();
+                var teslaApi = serviceProvider.GetService<ITeslaAPI>();
+                var teslaSettings = serviceProvider.GetRequiredService<IOptionsSnapshot<TeslaSettings>>();
+                return new TeslaControl.TeslaControl(logger, teslaApi, teslaSettings.Value.TeslaRefreshToken);
+            });
+
             services.AddTransient<IPowerProduction, EnphaseLocal>();
-            services.AddSingleton<IConsumptionOptimizer, ConsumptionOptimizer>();
+
+            // Register ConsumptionOptimizer using IOptionsSnapshot
+            services.AddTransient<IConsumptionOptimizer, ConsumptionOptimizer>(serviceProvider =>
+            {
+                var teslaControl = serviceProvider.GetService<ITeslaControl>();
+                var powerProduction = serviceProvider.GetService<IPowerProduction>();
+                var logger = serviceProvider.GetService<ILogger<ConsumptionOptimizer>>();
+                var helperSettings = serviceProvider.GetRequiredService<IOptionsMonitor<HelperSettings>>();
+                var vehicleSettings = serviceProvider.GetRequiredService<IOptionsSnapshot<VehicleSettings>>();
+                return new ConsumptionOptimizer(logger, helperSettings, vehicleSettings, powerProduction, teslaControl);
+            });
 
         })
         .UseSerilog();
