@@ -17,6 +17,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PowerProduction.Tests", "te
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PowerProduction", "PowerProduction\PowerProduction.csproj", "{E9FE657F-EFE9-4B22-BBCD-F4EBDEF20209}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TeslaControl.Tests", "TeslaControl.Tests\TeslaControl.Tests.csproj", "{F4435297-2B41-46CF-BD3A-B679F64B8D32}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -43,6 +45,10 @@ Global
 		{E9FE657F-EFE9-4B22-BBCD-F4EBDEF20209}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E9FE657F-EFE9-4B22-BBCD-F4EBDEF20209}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E9FE657F-EFE9-4B22-BBCD-F4EBDEF20209}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F4435297-2B41-46CF-BD3A-B679F64B8D32}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F4435297-2B41-46CF-BD3A-B679F64B8D32}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F4435297-2B41-46CF-BD3A-B679F64B8D32}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F4435297-2B41-46CF-BD3A-B679F64B8D32}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -53,6 +59,7 @@ Global
 		{48CEE3B4-ABE9-4A6F-AF19-2CEC7FB26239} = {D9D18302-1398-472A-8A18-73625CDA21BD}
 		{F9527A9A-3742-4F47-BA6F-5B72064C249A} = {D9D18302-1398-472A-8A18-73625CDA21BD}
 		{E9FE657F-EFE9-4B22-BBCD-F4EBDEF20209} = {3465377A-5A67-480A-93CE-1AFEA68648F1}
+		{F4435297-2B41-46CF-BD3A-B679F64B8D32} = {D9D18302-1398-472A-8A18-73625CDA21BD}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {7C1F15B9-2E49-4393-8602-BC9ABF6B64B5}

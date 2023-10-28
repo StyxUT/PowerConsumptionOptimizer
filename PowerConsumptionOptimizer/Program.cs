@@ -87,7 +87,7 @@ static IHostBuilder CreateHostBuilder() =>
                 var powerProduction = serviceProvider.GetService<IPowerProduction>();
                 var logger = serviceProvider.GetService<ILogger<ConsumptionOptimizer>>();
                 var helperSettings = serviceProvider.GetRequiredService<IOptionsMonitor<HelperSettings>>();
-                var vehicleSettings = serviceProvider.GetRequiredService<IOptionsSnapshot<VehicleSettings>>();
+                var vehicleSettings = serviceProvider.GetRequiredService<IOptionsMonitor<VehicleSettings>>();
                 return new ConsumptionOptimizer(logger, helperSettings, vehicleSettings, powerProduction, teslaControl);
             });
 

@@ -9,6 +9,28 @@
 	<SelfContained>false</SelfContained>
   </PropertyGroup>
 
+<PropertyGroup Label="FineCodeCoverage">
+	<Enabled>
+		True
+	</Enabled>
+	<Exclude>
+		[ThirdParty.*]*
+		[FourthParty]*
+	</Exclude>
+	<Include>
+	</Include>
+	<ExcludeByFile>
+		**/Migrations/*
+		**/Hacks/*.cs
+	</ExcludeByFile>
+	<ExcludeByAttribute>
+		MyCustomExcludeFromCodeCoverage
+	</ExcludeByAttribute>
+	<IncludeTestAssembly>
+		False
+	</IncludeTestAssembly>
+</PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Serilog.Extensions.Hosting" Version="7.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="4.1.0" />

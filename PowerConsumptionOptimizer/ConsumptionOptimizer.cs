@@ -4,7 +4,6 @@ using Microsoft.Extensions.Options;
 using PowerProduction;
 using System.Runtime.CompilerServices;
 using System.Text;
-using System.Threading;
 using TeslaControl;
 
 [assembly: InternalsVisibleTo("PowerConsumptionOptimizer.Tests")]
@@ -14,7 +13,7 @@ namespace PowerConsumptionOptimizer
     {
         private readonly ILogger<ConsumptionOptimizer> _logger;
         private readonly IOptionsMonitor<HelperSettings> _helperSettings;
-        private readonly IOptionsSnapshot<VehicleSettings> _vehicleSettings;
+        private readonly IOptionsMonitor<VehicleSettings> _vehicleSettings;
         private readonly IPowerProduction _powerProduction;
         //private readonly IForecast _forecast;
         private readonly ITeslaControl _teslaControl;
@@ -30,7 +29,7 @@ namespace PowerConsumptionOptimizer
         private static bool exit = false;
         //private static double? solarIrradianceNextHour;
 
-        public ConsumptionOptimizer(ILogger<ConsumptionOptimizer> logger, IOptionsMonitor<HelperSettings> helperSettings, IOptionsSnapshot<VehicleSettings> vehicleSettings, IPowerProduction powerProduction, ITeslaControl teslaControl)
+        public ConsumptionOptimizer(ILogger<ConsumptionOptimizer> logger, IOptionsMonitor<HelperSettings> helperSettings, IOptionsMonitor<VehicleSettings> vehicleSettings, IPowerProduction powerProduction, ITeslaControl teslaControl)
         {
             _logger = logger;
             _helperSettings = helperSettings;
@@ -40,7 +39,7 @@ namespace PowerConsumptionOptimizer
             //_forecast = forecast;
             _teslaControl = teslaControl;
 
-            vehicles = _vehicleSettings.Value.Vehicles;
+            vehicles = _vehicleSettings.CurrentValue.Vehicles;
         }
 
         public async Task Optimize()
@@ -263,11 +262,9 @@ namespace PowerConsumptionOptimizer
         /// </summary>
         /// <param name="vehicle">the vehicle to set the charge rate for</param>
         /// <param name="desiredAmps">the amps to set the charge rate at</param>
-        private void SetChargeRate(Vehicle vehicle, int desiredAmps)
+        internal void SetChargeRate(Vehicle vehicle, int desiredAmps)
         {
             StringBuilder output = new();
-
-            vehicle.ChargeState = _teslaControl.GetVehicleChargeStateAsync(vehicle.Id).Result;
 
             if (desiredAmps < 5)
             {
@@ -282,7 +279,11 @@ namespace PowerConsumptionOptimizer
             {
                 _teslaControl.SetChargingAmpsAsync(vehicle.Id, desiredAmps);
                 vehicle.ChargeState.ChargeAmps = desiredAmps;
-                if (!vehicle.ChargeState.ChargeEnableRequest)
+                var chargeState = _teslaControl.GetVehicleChargeStateAsync(vehicle.Id).Result;
+                
+                vehicle.ChargeState = chargeState != null ? chargeState: vehicle.ChargeState;
+
+                if (!vehicle.ChargeState.ChargeEnableRequest) // if charging is not enabled
                 {
                     _teslaControl.ChargeStartAsync(vehicle.Id);
                     vehicle.ChargeState.ChargingState = "Charging";

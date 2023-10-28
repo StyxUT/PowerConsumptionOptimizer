@@ -1,14 +1,12 @@
 ﻿//using Forecast;
-using Microsoft.Extensions.Configuration;
+using ConfigurationSettings;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 using PowerProduction;
-using System;
 using System.Collections.Generic;
 using TeslaControl;
 using Xunit;
-using ConfigurationSettings;
-using Microsoft.Extensions.Options;
 
 namespace PowerConsumptionOptimizer.Tests
 {
@@ -16,25 +14,26 @@ namespace PowerConsumptionOptimizer.Tests
     {
         private readonly Mock<ILogger<ConsumptionOptimizer>> _loggerMock;
         private readonly ConsumptionOptimizer _consumptionOptimizer;
-        //private readonly Mock<IConfiguration> _configurationMock;
         private Mock<IOptionsMonitor<HelperSettings>> _helperSettingsMock;
         private Mock<IOptionsSnapshot<VehicleSettings>> _vehicleSettingsMock;
         private readonly Mock<IPowerProduction> _powerProductionMock;
         //private readonly Mock<IForecast> _forecastMock;
         private readonly Mock<ITeslaControl> _teslaControlMock;
-        
+        private readonly List<Vehicle> vehicles;
+
+
         public ConsumptionOptimizerTests()
         {
             _loggerMock = new Mock<ILogger<ConsumptionOptimizer>>();
             _helperSettingsMock = new Mock<IOptionsMonitor<HelperSettings>>();
-            _vehicleSettingsMock = new Mock<IOptionsSnapshot<VehicleSettings>>();
             _powerProductionMock = new Mock<IPowerProduction>();
             //_forecastMock = new Mock<IForecast>();
             _teslaControlMock = new Mock<ITeslaControl>();
 
-            var builder = new ConfigurationBuilder();
-            builder.AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production"}.json", optional: true);
-            _consumptionOptimizer = new ConsumptionOptimizer(_loggerMock.Object, _helperSettingsMock.Object, _vehicleSettingsMock.Object, _powerProductionMock.Object, _teslaControlMock.Object);
+            VehicleSettings vehicleSettings = new VehicleSettings() { };
+            var _vehicleSettingsMock = Mock.Of<IOptionsMonitor<VehicleSettings>>(vs => vs.CurrentValue == vehicleSettings);
+
+            _consumptionOptimizer = new ConsumptionOptimizer(_loggerMock.Object, _helperSettingsMock.Object, _vehicleSettingsMock, _powerProductionMock.Object, _teslaControlMock.Object);
         }
 
         [Theory]
@@ -305,6 +304,24 @@ namespace PowerConsumptionOptimizer.Tests
 
             //assert
             Assert.Equal(expected, vehicle.Id);
+        }
+
+        [Theory]
+        [InlineData(1, "Stopped")]
+        [InlineData(10, "Charging")]
+        public void PowerConsumptionOptimizer_SetChargeRate(int desiredAmps, string expected)
+        {
+            //arrange
+            List<Vehicle> vehicles = new List<Vehicle>();
+            var chargeState = new TeslaAPI.Models.Vehicles.ChargeState();
+            chargeState.ChargingState = "asdf";
+            var vehicle = new Vehicle { Name = "test vehicle 1", Id = "1", ChargeState = chargeState };
+
+            //act
+            _consumptionOptimizer.SetChargeRate(vehicle, desiredAmps);
+
+            //assert
+            Assert.Equal(expected, vehicle.ChargeState.ChargingState);
         }
     }
 }
