@@ -15,6 +15,8 @@ WORKDIR "/src/PowerConsumptionOptimizer"
 RUN dotnet build "PowerConsumptionOptimizer.csproj" -c Release -o /app/build
 
 FROM build AS publish
+RUN ["apt-get", "update"]
+RUN ["apt-get", "-y", "install", "vi"]
 RUN dotnet publish "PowerConsumptionOptimizer.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 FROM base AS final
