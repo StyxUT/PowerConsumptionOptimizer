@@ -15,7 +15,8 @@ namespace PowerConsumptionOptimizer.Tests
         private readonly Mock<ILogger<ConsumptionOptimizer>> _loggerMock;
         private readonly ConsumptionOptimizer _consumptionOptimizer;
         private Mock<IOptionsMonitor<HelperSettings>> _helperSettingsMock;
-        private Mock<IOptionsSnapshot<VehicleSettings>> _vehicleSettingsMock;
+        private Mock<IOptionsMonitor<VehicleSettings>> _vehicleSettingsMock;
+        private Mock<IOptionsMonitor<ConsumptionOptimizerSettings>> _consumptionOptimizerSettingsMock;
         private readonly Mock<IPowerProduction> _powerProductionMock;
         //private readonly Mock<IForecast> _forecastMock;
         private readonly Mock<ITeslaControl> _teslaControlMock;
@@ -26,6 +27,7 @@ namespace PowerConsumptionOptimizer.Tests
         {
             _loggerMock = new Mock<ILogger<ConsumptionOptimizer>>();
             _helperSettingsMock = new Mock<IOptionsMonitor<HelperSettings>>();
+            _consumptionOptimizerSettingsMock = new Mock<IOptionsMonitor<ConsumptionOptimizerSettings>>();
             _powerProductionMock = new Mock<IPowerProduction>();
             //_forecastMock = new Mock<IForecast>();
             _teslaControlMock = new Mock<ITeslaControl>();
@@ -33,7 +35,7 @@ namespace PowerConsumptionOptimizer.Tests
             VehicleSettings vehicleSettings = new VehicleSettings() { };
             var _vehicleSettingsMock = Mock.Of<IOptionsMonitor<VehicleSettings>>(vs => vs.CurrentValue == vehicleSettings);
 
-            _consumptionOptimizer = new ConsumptionOptimizer(_loggerMock.Object, _helperSettingsMock.Object, _vehicleSettingsMock, _powerProductionMock.Object, _teslaControlMock.Object);
+            _consumptionOptimizer = new ConsumptionOptimizer(_loggerMock.Object, _helperSettingsMock.Object, _vehicleSettingsMock, _consumptionOptimizerSettingsMock.Object, _powerProductionMock.Object, _teslaControlMock.Object);
         }
 
         [Theory]
@@ -86,14 +88,14 @@ namespace PowerConsumptionOptimizer.Tests
             Assert.True(result);
         }
 
-        [Fact (Skip = "obsolete")]
+        [Fact(Skip = "obsolete")]
         //vehicle is not the priority but is charging
         public void PowerConsumptionOptimizer_RefreshVehicleChargeState_IsTrue2()
         {
             //arrange
             var chargeState = new TeslaAPI.Models.Vehicles.ChargeState();
             chargeState.ChargingState = "Charging";
-                
+
             var vehicle = new Vehicle { Name = "test vehicle", Id = "123456", ChargeState = chargeState, IsPriority = false };
 
             //act
@@ -103,7 +105,7 @@ namespace PowerConsumptionOptimizer.Tests
             Assert.True(vehicle.RefreshChargeState);
         }
 
-        [Theory (Skip = "obsolete")]
+        [Theory(Skip = "obsolete")]
         //IsPriority charging vehicle is true for all tests
         [InlineData(1000, -500, "Charging")] // negative diff larger than voltage; charging
         [InlineData(1000, 2000, "Charging")] // positive diff larger than voltage; charging
@@ -127,7 +129,7 @@ namespace PowerConsumptionOptimizer.Tests
             Assert.True(vehicle.RefreshChargeState);
         }
 
-        [Theory (Skip = "obsolete")]
+        [Theory(Skip = "obsolete")]
         //IsPriority charging vehicle is true for all tests
         [InlineData(1000, 800, "Charging")] // negative diff less than voltage; charging
         [InlineData(1000, 1200, "Charging")] // positive diff less than voltage; charging
@@ -182,7 +184,7 @@ namespace PowerConsumptionOptimizer.Tests
             _consumptionOptimizer.vehicles = vehicles;
 
             //act
-            _consumptionOptimizer.DetermineChargingPriority();
+            _consumptionOptimizer.DetermineChargingPriority(vehicles);
 
             //assert
             Assert.True(v1.IsPriority);
@@ -215,7 +217,7 @@ namespace PowerConsumptionOptimizer.Tests
             _consumptionOptimizer.vehicles = vehicles;
 
             //act
-            _consumptionOptimizer.DetermineChargingPriority();
+            _consumptionOptimizer.DetermineChargingPriority(vehicles);
 
             //assert
             Assert.True(v2.IsPriority);
@@ -250,7 +252,7 @@ namespace PowerConsumptionOptimizer.Tests
             _consumptionOptimizer.vehicles = vehicles;
 
             //act
-            _consumptionOptimizer.DetermineChargingPriority();
+            _consumptionOptimizer.DetermineChargingPriority(vehicles);
 
             //assert
             Assert.True(v2.IsPriority);
@@ -270,7 +272,7 @@ namespace PowerConsumptionOptimizer.Tests
             v2.IsPriority = false;
 
             vehicles.Add(v1);
- 
+
             _consumptionOptimizer.vehicles = vehicles;
 
             //act

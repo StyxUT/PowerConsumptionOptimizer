@@ -22,10 +22,9 @@ namespace ConfigurationSettings
     public class ConsumptionOptimizerSettings
     {
         public const string COS = "ConsumptionOptimizerSettings";
-        //public const string Vehicles = "Vehicles";
-        public double AmSolarIrradianceThreshold { get; set; }
-        public double PmSolarIrradianceThreshold { get; set; }
 
+        public int IrradianceSleepThreshold { get; set; }
+        public string ForecastServiceURL { get; set; }
     }
 
     public class TeslaSettings

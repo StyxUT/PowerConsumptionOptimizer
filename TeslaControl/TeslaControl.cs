@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Polly;
+using Polly.Retry;
 using TeslaAPI;
 using TeslaAPI.Models;
 using TeslaAPI.Models.Response;
@@ -49,15 +50,17 @@ namespace TeslaControl
                         if (ex.Message.Contains("invalid bearer token"))
                         {
                             _logger.LogDebug($"TeslaControl - invalid bearer token");
-                            ManageAccessToken(); 
+                            ManageAccessToken();
                         }
                         else if (ex.Message.Contains("vehicle unavailable"))
-                        { WakeUpVehicle(); }
+                        {
+                           _ = WakeUpVehicle(); 
+                        }
                         else
                         {
                             _logger.LogDebug($"TeslaControl - unanticipated error");
-                            ManageAccessToken(); 
-                            WakeUpVehicle(); 
+                            ManageAccessToken();
+                            _ = WakeUpVehicle();
                         };
                     });
 
@@ -69,18 +72,18 @@ namespace TeslaControl
             lock (tokenLock)
             {
                 _logger.LogDebug("TeslaControl - ManageAccessToken - Refreshing Tesla access token");
-                _logger.LogDebug($"TeslaControl - ManageAccessToken - RefreshToken: ${RefreshToken}");
+                _logger.LogDebug($"TeslaControl - ManageAccessToken - RefreshToken: ${RefreshToken.Substring(0, 10)}...");
                 _logger.LogDebug($"TeslaControl - ManageAccessToken - _client.BaseAddress: ${_client.BaseAddress}");
 
                 _teslaRefreshToken = retryOnException.ExecuteAsync(action => _teslaAPI.RefreshTokenAsync(_client, RefreshToken), context: new Context("ManageAccessToken")).Result;
 
                 TeslaAccessToken.AccessToken = _teslaRefreshToken.AccessToken;
                 TeslaAccessToken.ExpiresIn = _teslaRefreshToken.ExpiresIn;
-                _logger.LogDebug($"TeslaControl - ManageAccessToken - TeslaAccessToken.AccessToken: ${TeslaAccessToken.AccessToken}");
+                _logger.LogDebug($"TeslaControl - ManageAccessToken - TeslaAccessToken.AccessToken: ${TeslaAccessToken.AccessToken.Substring(0, 10)}...");
 
                 TeslaBearerToken.AccessToken = _teslaRefreshToken.AccessToken;
                 TeslaBearerToken.ExpiresIn = _teslaRefreshToken.ExpiresIn;
-                _logger.LogDebug($"TeslaControl - ManageAccessToken - TeslaBearerToken.AccessToken: ${TeslaBearerToken.AccessToken}");
+                _logger.LogDebug($"TeslaControl - ManageAccessToken - TeslaBearerToken.AccessToken: ${TeslaBearerToken.AccessToken.Substring(0,10)}...");
 
                 // update authorization header
                 _client.DefaultRequestHeaders.Remove("Authorization");
@@ -88,10 +91,10 @@ namespace TeslaControl
             }
         }
 
-        private async void WakeUpVehicle()
+        private async Task WakeUpVehicle()
         {
             _logger.LogDebug("TeslaControl - Waking up vehicle");
-            var vehicle = retryOnException.ExecuteAsync(action => _teslaAPI.WakeUpAsync(_client, VehicleId), context: new Context("WakeUpVehicle")).Result;
+            await retryOnException.ExecuteAsync(action => _teslaAPI.WakeUpAsync(_client, VehicleId), context: new Context("WakeUpVehicle"));
         }
 
         public async Task<List<Vehicle>> GetAllVehiclesAsync()
@@ -103,6 +106,7 @@ namespace TeslaControl
         {
             VehicleId = vehicleId;
             var result = await retryOnException.ExecuteAsync<VehicleData>(async action => await _teslaAPI.GetVehicleDataAsync(_client, vehicleId), context: new Context("GetVehicleChargeStateAsync"));
+            
             return result.ChargeState;
         }
 

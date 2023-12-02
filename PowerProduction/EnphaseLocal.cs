@@ -14,7 +14,7 @@ namespace PowerProduction
         private readonly ILogger<EnphaseLocal> _logger;
 
         const string BaseURL = "http://envoy.home";
-        private static readonly HttpClient client = new HttpClient();
+        private static readonly HttpClient client = new();
         readonly IAsyncPolicy retryOnException;
 
         /// <summary>
@@ -78,12 +78,12 @@ namespace PowerProduction
                 stringBuilder.AppendLine($"ResponseCode: {response.StatusCode}");
                 stringBuilder.Append($"ReasonPhrase: {response.ReasonPhrase}");
                 var result = await response.Content.ReadAsStringAsync();
-                _logger.LogError($"{result.ToString()}");
+                _logger.LogError($"{result}");
                 return null;
             }
         }
 
-        internal NetConsumption? ParseNetConsumption(string? result)
+        internal static NetConsumption? ParseNetConsumption(string? result)
         {
             var parsedObject = JObject.Parse(result);
             var netConsumption = parsedObject["consumption"][1].ToString();

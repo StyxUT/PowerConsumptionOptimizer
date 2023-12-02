@@ -1,9 +1,13 @@
 ﻿using ConfigurationSettings;
 using Microsoft.Extensions.Options;
-//using Forecast;
+using PowerConsumptionOptimizer.Forecast;
 using PowerProduction;
+using System.Data.SqlTypes;
+using System.Net.Http.Headers;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.Json;
 using TeslaControl;
 
 [assembly: InternalsVisibleTo("PowerConsumptionOptimizer.Tests")]
@@ -14,29 +18,27 @@ namespace PowerConsumptionOptimizer
         private readonly ILogger<ConsumptionOptimizer> _logger;
         private readonly IOptionsMonitor<HelperSettings> _helperSettings;
         private readonly IOptionsMonitor<VehicleSettings> _vehicleSettings;
+        private readonly IOptionsMonitor<ConsumptionOptimizerSettings> _consumptionOptimizerSettings;
         private readonly IPowerProduction _powerProduction;
-        //private readonly IForecast _forecast;
+
         private readonly ITeslaControl _teslaControl;
 
         internal List<Vehicle> vehicles;
 
-
-        //private static ConsumptionOptimizerSettings coSettings;
-
-        private static CancellationTokenSource tokenSource;
+        private static CancellationTokenSource tokenSource = new();
         private static CancellationToken cancelationToken;
 
         private static bool exit = false;
-        //private static double? solarIrradianceNextHour;
 
-        public ConsumptionOptimizer(ILogger<ConsumptionOptimizer> logger, IOptionsMonitor<HelperSettings> helperSettings, IOptionsMonitor<VehicleSettings> vehicleSettings, IPowerProduction powerProduction, ITeslaControl teslaControl)
+        public ConsumptionOptimizer(ILogger<ConsumptionOptimizer> logger, IOptionsMonitor<HelperSettings> helperSettings, IOptionsMonitor<VehicleSettings> vehicleSettings,
+            IOptionsMonitor<ConsumptionOptimizerSettings> consumptionOptimizerSettings, IPowerProduction powerProduction, ITeslaControl teslaControl)
         {
             _logger = logger;
             _helperSettings = helperSettings;
             _vehicleSettings = vehicleSettings;
+            _consumptionOptimizerSettings = consumptionOptimizerSettings;
             _powerProduction = powerProduction;
- 
-            //_forecast = forecast;
+
             _teslaControl = teslaControl;
 
             vehicles = _vehicleSettings.CurrentValue.Vehicles;
@@ -55,7 +57,7 @@ namespace PowerConsumptionOptimizer
                     cancelationToken = tokenSource.Token;
 
                     if (vehicles.Count == 0)
-                    { 
+                    {
                         _logger.LogError("No vehicles configured.\n Exiting...");
                         exit = true;
                         System.Environment.Exit(1);
@@ -68,18 +70,17 @@ namespace PowerConsumptionOptimizer
                         //delay until vehicle charge state has been updated for the first time
                         while (vehicle.ChargeState == null)
                         {
-                            _logger.LogDebug($"{@vehicle.Name} - Waiting for ChargeState refresh");
-                            await Task.Delay(TimeSpan.FromSeconds(15));
+                            _logger.LogDebug($"{@vehicle.Name} - Still waiting for ChargeState refresh");
+                            await Task.Delay(TimeSpan.FromSeconds(15), cancelationToken);
                         }
                     });
 
-                    tasks.Add(Task.Run(() => RefreshVehicleChargePriority(vehicles, 30), tokenSource.Token));
- 
+                    tasks.Add(Task.Run(() => RefreshVehicleChargePriority(30), tokenSource.Token));
                     tasks.Add(Task.Run(() => RefreshNetPowerProduction(vehicles, 1), tokenSource.Token));
 
-                    // Called to ensure charge priority has been set prior to monitoring to prevent unintended sleeping when application starts
-                    RefreshVehicleChargePriority(vehicles, 1);
-                    tasks.Add(Task.Run(() => DetermineMonitorCharging(vehicles, 61)));
+                    //Called to ensure charge priority has been set prior to monitoring to prevent unintended sleeping when application starts
+                    //RefreshVehicleChargePriority(vehicles, 0);
+                    tasks.Add(Task.Run(() => DetermineMonitorCharging(1)));
 
                     //wait until all the tasks in the list are completed
                     await Task.WhenAll(tasks); //throws an exception when a task is canceled using the cancelation token
@@ -113,57 +114,52 @@ namespace PowerConsumptionOptimizer
         /// </summary>
         /// <param name="sleepDuration">how long to sleep between checks</param>
         /// <returns>task</returns>
-        private async Task DetermineMonitorCharging(List<Vehicle> vehicles, int sleepDuration)
+        private async Task DetermineMonitorCharging(int sleepDuration)
         {
             bool monitor = true;
-            TimeSpan morningUTC = new TimeSpan(13, 0, 0);
-            TimeSpan nightUTC = new TimeSpan(01, 0, 0);
-
-
-            //double solarIrradianceThreshold = Helpers.GetSolarIrradianceThreshold(coSettings, helperSettings);
 
             while (!exit && monitor)
             {
                 StringBuilder output = new();
+                DateTime now = DateTime.UtcNow;
                 output.Append($"Power Consumption Optimizer - ");
-                TimeSpan now = DateTime.UtcNow.TimeOfDay;
+                int threshold = _consumptionOptimizerSettings.CurrentValue.IrradianceSleepThreshold;
+                double? currentHour = null;
+                bool success = false;
 
-
-                //if (_forecast.GetSolarIrradianceNextHour() <= solarIrradianceThreshold)
-                //{
-                //    //pause until the hour before reaching the SolarIrradianceThreshold
-                //    sleepDuration = (Helpers.DetermineSleepDuration(_forecast.GetSolarIrradianceByHour(), coSettings, helperSettings) - 1) * 60;
-                //    tokenSource.Cancel(); //cancel tasks
-
-                //    output.AppendLine($"Pause active monitoring until {DateTime.Now.AddMinutes(sleepDuration)}");
-                //    output.AppendLine($"\t SolarIrradiance is less than {solarIrradianceThreshold} over the next {sleepDuration / 60} hour(s)");
-                //    monitor = false;
-                //}
-                //else if (GetPriorityVehicle() is null)
-                //{
-
-
-                if (Helpers.TimeBetween(DateTime.UtcNow, nightUTC, morningUTC))
+                while (!success)
                 {
+                    _logger.LogTrace("Power Consumption Optimizer - calling forecast SolarIrradianceCurrentHour");
+                    success = double.TryParse(await GetSolarDataValueAsync("SolarIrradianceCurrentHour", ""), out double responseCurrentHour);
+                    currentHour = responseCurrentHour;
+                    if (!success)
+                        await Task.Delay(900000);
+                }
+
+                if (currentHour < threshold)
+                {
+                    var nextMet = await GetSolarDataDateTimeAsync("IrradianceThresholdNextMet", $"threshold={threshold}");
+                    sleepDuration = (int)nextMet.Subtract(now).TotalMinutes - 30;
+
                     tokenSource.Cancel(); //cancel tasks
 
                     output.AppendLine($"Pause active monitoring until {DateTime.UtcNow.AddMinutes(sleepDuration)} UTC");
-                    output.AppendLine($"\t reduced nighttime monitoring");
+                    output.AppendLine($"\t reduced monitoring while solar irradiance is below threshold");
                     monitor = false;
                 }
                 else if (GetPriorityVehicle() is null)
                 {
                     tokenSource.Cancel(); //cancel tasks
-                    sleepDuration *= 2;
+                    sleepDuration *= 3;
 
                     output.AppendLine($"Pause active monitoring until {DateTime.UtcNow.AddMinutes(sleepDuration)} UTC");
-                    output.AppendLine($"\t all vehicle(s) are either at their charge limit or unavailable for charging");
+                    output.AppendLine($"\t all vehicles are either at their charge limit or unavailable for charging");
                     monitor = false;
                 }
                 else
                 {
                     output.AppendLine("Continuing active monitoring");
-                    //output.AppendLine($"\t SolarIrradiance is greater than {solarIrradianceThreshold} over the next hour");
+                    output.AppendLine($"\t SolarIrradiance is greater than {threshold} durring the current hour");
                 }
                 _logger.LogInformation(output.ToString().TrimEnd('\n'));
                 output.Clear();
@@ -171,55 +167,153 @@ namespace PowerConsumptionOptimizer
             }
         }
 
-        /// <summary>
-        /// Refreshed the current projected solar irradiance over the next 12 hours
-        /// </summary>
-        /// <param name="sleepDuration">milliseconds to sleep between refresh cycles</param>
-        //private void RefreshSolarIrradianceNextHour(int sleepDuration)
-        //{
-        //    while (!cancelationToken.IsCancellationRequested)
-        //    {
-        //        solarIrradianceNextHour = _forecast.GetSolarIrradianceNextHour();
+        internal async Task<string?> GetSolarDataValueAsync(string method, string queryStringParams)
+        {
+            HttpClient httpClient = new();
+            StringBuilder stringBuilder = new();
+            string baseURL = $"{_consumptionOptimizerSettings.CurrentValue.ForecastServiceURL}/api/Forecast";
 
-        //        cancelationToken.WaitHandle.WaitOne(TimeSpan.FromMinutes(sleepDuration));
-        //    }
-        //}
+            string path = $"{baseURL}/{method}?{queryStringParams}";
 
-        /// <summary>
-        /// Cycles though a list of vehicles and if needed, refreshes their Charge State
-        /// </summary>
-        /// <param name="vehicles"></param>
-        /// <param name="sleepDuration">second so sleep between loops</param>
-        private void RefreshVehicleChargeState(List<Vehicle> vehicles, int sleepDuration)
+            httpClient.DefaultRequestHeaders.Accept.Clear();
+            httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("Application/json"));
+
+            httpClient.Timeout = TimeSpan.FromSeconds(5);
+
+            stringBuilder.Append("AccuWeather - GetForecast");
+
+            try
+            {
+                var response = await httpClient.GetAsync(path);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var jsonResult = await response.Content.ReadAsStringAsync();
+                    _logger.LogInformation(stringBuilder.ToString().TrimEnd('\n'));
+
+                    SolarData solarData = JsonSerializer.Deserialize<SolarData>(jsonResult);
+                    return solarData.SolarIrradiance.Value.ToString();
+                }
+                else
+                {
+                    stringBuilder.AppendLine($"\t!{MethodBase.GetCurrentMethod()} Unsuccessful...");
+                    stringBuilder.AppendLine($"\t ResponseCode: {response.StatusCode}");
+                    stringBuilder.AppendLine($"\t ReasonPhrase: {response.ReasonPhrase}");
+
+                    _logger.LogCritical(stringBuilder.ToString().TrimEnd('\n'));
+
+                    return null;
+                }
+            }
+            catch (TaskCanceledException)
+            {
+                stringBuilder.AppendLine("Request timed out.");
+                _logger.LogWarning(stringBuilder.ToString().TrimEnd('\n'));
+                return null;
+            }
+            catch (Exception ex)
+            {
+                stringBuilder.AppendLine($"An error occurred: {ex.Message}");
+                _logger.LogError(stringBuilder.ToString().TrimEnd('\n'));
+                return null;
+            }
+        }
+
+
+        private async Task<DateTime> GetSolarDataDateTimeAsync(string method, string queryStringParams)
+        {
+            HttpClient httpClient = new();
+            StringBuilder stringBuilder = new();
+            string baseURL = $"{_consumptionOptimizerSettings.CurrentValue.ForecastServiceURL}/api/Forecast";
+
+            string path = $"{baseURL}/{method}?{queryStringParams}";
+
+            httpClient.DefaultRequestHeaders.Accept.Clear();
+            httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("Application/json"));
+
+            httpClient.Timeout = TimeSpan.FromSeconds(5);
+
+            stringBuilder.Append("AccuWeather - GetForecast");
+
+            try
+            {
+                var response = await httpClient.GetAsync(path);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var jsonResult = await response.Content.ReadAsStringAsync();
+                    _logger.LogInformation(stringBuilder.ToString().TrimEnd('\n'));
+
+                    SolarData solarData = JsonSerializer.Deserialize<SolarData>(jsonResult);
+
+                    return solarData.DateTime.UtcDateTime;
+                }
+                else
+                {
+                    stringBuilder.AppendLine($"\t!{MethodBase.GetCurrentMethod()} Unsuccessful...");
+                    stringBuilder.AppendLine($"\t ResponseCode: {response.StatusCode}");
+                    stringBuilder.AppendLine($"\t ReasonPhrase: {response.ReasonPhrase}");
+
+                    _logger.LogCritical(stringBuilder.ToString().TrimEnd('\n'));
+                    return DateTime.UtcNow.AddHours(1);
+                }
+            }
+            catch (TaskCanceledException)
+            {
+                stringBuilder.AppendLine("Request timed out.");
+                _logger.LogWarning(stringBuilder.ToString().TrimEnd('\n'));
+                return DateTime.UtcNow.AddHours(1);
+            }
+            catch (Exception ex)
+            {
+                stringBuilder.AppendLine($"An error occurred: {ex.Message}");
+                _logger.LogError(stringBuilder.ToString().TrimEnd('\n'));
+                return DateTime.UtcNow.AddHours(1);
+            }
+        }
+
+/// <summary>
+/// Cycles though a list of vehicles and if needed, refreshes their Charge State
+/// </summary>
+/// <param name="vehicles"></param>
+/// <param name="sleepDuration">second so sleep between loops</param>
+private void RefreshVehicleChargeState(List<Vehicle> vehicles, int sleepDuration)
         {
             while (!cancelationToken.IsCancellationRequested)
             {
                 StringBuilder output = new();
 
-                foreach (Vehicle vehicle in vehicles)
+                try
                 {
-                    output.AppendLine($"{vehicle.Name} - GetVehicleChargeState");
-                    vehicle.RefreshChargeState = false;
-                    vehicle.ChargeState = _teslaControl.GetVehicleChargeStateAsync(vehicle.Id).Result;
+                    foreach (Vehicle vehicle in vehicles)
+                    {
+                        output.AppendLine($"{vehicle.Name} - GetVehicleChargeState");
+                        vehicle.RefreshChargeState = false;
+                        vehicle.ChargeState = _teslaControl.GetVehicleChargeStateAsync(vehicle.Id).Result;
 
-                    output.AppendLine($"\t {vehicle.Name} - ChargingState: {vehicle.ChargeState.ChargingState}");
-                    output.AppendLine($"\t {vehicle.Name} - BatteryLevel: {vehicle.ChargeState.BatteryLevel}");
-                    output.AppendLine($"\t {vehicle.Name} - ChargeLimitStateOfCharge: {vehicle.ChargeState.ChargeLimitStateOfCharge}");
-                    output.AppendLine($"\t {vehicle.Name} - ChargeAmps: {vehicle.ChargeState.ChargeAmps}");
-                    output.Append($"\t {vehicle.Name} - IsPriority: {vehicle.IsPriority}");
+                        output.AppendLine($"\t {vehicle.Name} - ChargingState: {vehicle.ChargeState.ChargingState}");
+                        output.AppendLine($"\t {vehicle.Name} - BatteryLevel: {vehicle.ChargeState.BatteryLevel}");
+                        output.AppendLine($"\t {vehicle.Name} - ChargeLimitStateOfCharge: {vehicle.ChargeState.ChargeLimitStateOfCharge}");
+                        output.AppendLine($"\t {vehicle.Name} - ChargeAmps: {vehicle.ChargeState.ChargeAmps}");
+                        output.Append($"\t {vehicle.Name} - IsPriority: {vehicle.IsPriority}");
 
-                    _logger.LogInformation(output.ToString());
-                    output.Clear();
+                        _logger.LogInformation(output.ToString());
+                        output.Clear();
+                    }
+                }
+                catch ( Exception ex ) 
+                { 
+                    _logger.LogCritical(ex.Message); 
                 }
                 cancelationToken.WaitHandle.WaitOne(TimeSpan.FromMinutes(sleepDuration));
             }
         }
 
-        private void RefreshVehicleChargePriority(List<Vehicle> vehicles, int sleepDuration)
+        private void RefreshVehicleChargePriority(int sleepDuration)
         {
             while (!cancelationToken.IsCancellationRequested)
             {
-                var resultLog = DetermineChargingPriority();
+                var resultLog = DetermineChargingPriority(vehicles);
                 _logger.LogInformation(resultLog.ToString());
                 cancelationToken.WaitHandle.WaitOne(TimeSpan.FromMinutes(sleepDuration));
             }
@@ -251,6 +345,7 @@ namespace PowerConsumptionOptimizer
                         vehicle.RefreshChargeState = true;
                         previousNetPowerProduction = netPowerProduction; // only update when true otherwise could miss a slow moving change
                         SetChargeRate(vehicle, desiredAmps);
+                        vehicle.ChargeState.ChargeAmps = desiredAmps >= 5 ? desiredAmps : 5;
                     }
                 }
                 cancelationToken.WaitHandle.WaitOne(TimeSpan.FromMinutes(sleepDuration));
@@ -280,8 +375,8 @@ namespace PowerConsumptionOptimizer
                 _teslaControl.SetChargingAmpsAsync(vehicle.Id, desiredAmps);
                 vehicle.ChargeState.ChargeAmps = desiredAmps;
                 var chargeState = _teslaControl.GetVehicleChargeStateAsync(vehicle.Id).Result;
-                
-                vehicle.ChargeState = chargeState != null ? chargeState: vehicle.ChargeState;
+
+                vehicle.ChargeState = chargeState ?? vehicle.ChargeState;
 
                 if (!vehicle.ChargeState.ChargeEnableRequest) // if charging is not enabled
                 {
@@ -407,7 +502,7 @@ namespace PowerConsumptionOptimizer
             _logger.LogInformation($"{vehicle.Name} - Queue RefreshVehicleChargeState: {vehicle.RefreshChargeState}\n {reason.ToString().TrimEnd('\n')}");
         }
 
-        internal string DetermineChargingPriority()
+        internal string DetermineChargingPriority(List<Vehicle> vehicles)
         {
             Dictionary<string, double> priority = new();
             StringBuilder reason = new();
@@ -437,6 +532,7 @@ namespace PowerConsumptionOptimizer
                     priorityScore += .001;
                     reason.AppendLine($"\t {vehicle.Name} - was given .001 priority points for currently having priority");
                 }
+
                 // give priority to vehicles with a Batterylevel < than 50
                 if (vehicle.ChargeState.BatteryLevel < 50)
                 {
@@ -452,13 +548,13 @@ namespace PowerConsumptionOptimizer
                 priority.Add(vehicle.Id, priorityScore);
             }
 
-            if (priority.Where(v => v.Value > 0.011).Count() > 0)
+            if (priority.Where(v => v.Value > 0.011).Any())
             {
                 var priorityVehicleId = priority.OrderByDescending(v => v.Value).First().Key;
 
                 foreach (Vehicle vehicle in vehicles)
                 {
-                    vehicle.IsPriority = vehicle.Id == priorityVehicleId ? true : false;
+                    vehicle.IsPriority = vehicle.Id == priorityVehicleId;
                 }
 
                 var priorityVehicle = GetPriorityVehicle();
@@ -476,7 +572,7 @@ namespace PowerConsumptionOptimizer
             return reason.ToString().TrimEnd('\n');
         }
 
-        public Vehicle GetPriorityVehicle()
+        public Vehicle? GetPriorityVehicle()
         {
             foreach (Vehicle vehicle in vehicles)
             {

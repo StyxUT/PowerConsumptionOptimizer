@@ -1,5 +1,5 @@
-//using Forecast;
 using ConfigurationSettings;
+using Microsoft.AspNetCore.Http.Timeouts;
 using Microsoft.Extensions.Options;
 using PowerConsumptionOptimizer;
 using PowerProduction;
@@ -23,26 +23,34 @@ using TeslaControl;
 
 [assembly: InternalsVisibleTo("PowerConsumptionOptimizer.Tests")]
 
-ServiceProvider serviceProvider = null;
-
 using IHost host = CreateHostBuilder().Build();
 
+var builder = WebApplication.CreateBuilder(args);
+
+// Configure Serilog for logging
 Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Verbose()
     .WriteTo.Console(restrictedToMinimumLevel: LogEventLevel.Verbose)
     .WriteTo.File(new JsonFormatter(), "./logs/log_.json",
         restrictedToMinimumLevel: LogEventLevel.Warning,
         retainedFileTimeLimit: TimeSpan.FromDays(7),
         rollingInterval: RollingInterval.Day, shared: true)
     .WriteTo.File("./logs/all_.logs",
-        restrictedToMinimumLevel: LogEventLevel.Verbose,
-        retainedFileTimeLimit: TimeSpan.FromDays(3),
+        retainedFileTimeLimit: TimeSpan.FromDays(1),
         rollingInterval: RollingInterval.Day, shared: true)
     .WriteTo.File("./logs/important_.logs",
         restrictedToMinimumLevel: LogEventLevel.Warning,
         retainedFileTimeLimit: TimeSpan.FromDays(31),
         rollingInterval: RollingInterval.Day)
-    .MinimumLevel.Debug()
     .CreateLogger();
+
+builder.Logging.AddSerilog();
+
+builder.Services.AddRequestTimeouts(options => {
+    options.DefaultPolicy =
+        new RequestTimeoutPolicy { Timeout = TimeSpan.FromMilliseconds(1500) };
+    options.AddPolicy("MyPolicy", TimeSpan.FromSeconds(2));
+});
 
 static IHostBuilder CreateHostBuilder() =>
     Host.CreateDefaultBuilder()
@@ -61,13 +69,8 @@ static IHostBuilder CreateHostBuilder() =>
             services.Configure<TeslaSettings>(configuration.GetSection(nameof(TeslaSettings)));
             services.Configure<HelperSettings>(configuration.GetSection(nameof(HelperSettings)));
             services.Configure<VehicleSettings>(configuration.GetSection(nameof(VehicleSettings)));
+            services.Configure<ConsumptionOptimizerSettings>(configuration.GetSection(nameof(ConsumptionOptimizerSettings)));
 
-            services.AddLogging(loggingBuilder =>
-            {
-                loggingBuilder.AddSerilog(dispose: true);
-            });
-            services.AddSingleton(configuration);
-            //services.AddTransient<ITeslaAPI, TeslaAPI.TeslaAPI>();
             services.AddTeslaApi();
 
             // Register TeslaControl using IOptionsSnapshot
@@ -87,16 +90,17 @@ static IHostBuilder CreateHostBuilder() =>
                 var teslaControl = serviceProvider.GetService<ITeslaControl>();
                 var powerProduction = serviceProvider.GetService<IPowerProduction>();
                 var logger = serviceProvider.GetService<ILogger<ConsumptionOptimizer>>();
+                var consumptionOptimizerSettings = serviceProvider.GetRequiredService<IOptionsMonitor<ConsumptionOptimizerSettings>>();
                 var helperSettings = serviceProvider.GetRequiredService<IOptionsMonitor<HelperSettings>>();
                 var vehicleSettings = serviceProvider.GetRequiredService<IOptionsMonitor<VehicleSettings>>();
-                return new ConsumptionOptimizer(logger, helperSettings, vehicleSettings, powerProduction, teslaControl);
+
+                return new ConsumptionOptimizer(logger, helperSettings, vehicleSettings, consumptionOptimizerSettings, powerProduction, teslaControl);
             });
 
         })
         .UseSerilog();
 
-Log.Information($"Power Consumption Optimizer - Starting v0.01");
-
+Log.Information($"Power Consumption Optimizer - Starting v0.04");
 var instance = ActivatorUtilities.CreateInstance<ConsumptionOptimizer>(host.Services);
 await instance.Optimize();
 
