@@ -95,17 +95,6 @@ namespace PowerConsumptionOptimizer
                 return (int)desiredAmps; // truncate at decimal
         }
 
-        ///// <summary>
-        ///// Gets the correct solar irradiance threshold on AM/PM and app setting
-        ///// </summary>
-        ///// <param name="pcoSettings">app settings</param>
-        ///// <returns>current solar irradiance threshold</returns>
-        //public static double GetSolarIrradianceThreshold(ConsumptionOptimizerSettings pcoSettings, HelperSettings helperSettings)
-        //{
-        //    DateTime dateTime = DateTime.UtcNow.AddHours(helperSettings.UTCOffset);
-        //    return dateTime.ToString("tt", System.Globalization.CultureInfo.InvariantCulture) == "AM" ? pcoSettings.AmSolarIrradianceThreshold : pcoSettings.PmSolarIrradianceThreshold;
-        //}
-
         public static bool TimeBetween(DateTime datetime, TimeSpan start, TimeSpan end)
         {
             // convert datetime to a TimeSpan
