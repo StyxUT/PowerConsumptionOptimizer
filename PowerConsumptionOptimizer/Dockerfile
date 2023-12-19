@@ -16,7 +16,7 @@ RUN dotnet build "PowerConsumptionOptimizer.csproj" -c Release -o /app/build
 
 FROM build AS publish
 RUN ["apt-get", "update"]
-RUN ["apt-get", "-y", "install", "vi"]
+RUN ["apt-get", "-y", "install", "vim"]
 RUN dotnet publish "PowerConsumptionOptimizer.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 FROM base AS final
