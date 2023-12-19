@@ -10,7 +10,8 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using TeslaAPI;
 using TeslaControl;
-
+using Microsoft.OpenApi.Models;
+using Swashbuckle.AspNetCore.SwaggerGen;
 
 //TODO: Consider if vehicle charge level is below override level but there is no solar production (app would be paused)
 //TODO: Use different cancelation token for program exit?
@@ -46,10 +47,31 @@ Log.Logger = new LoggerConfiguration()
 
 builder.Logging.AddSerilog();
 
+Log.Information($"Power Consumption Optimizer - Starting v0.04");
+
+// Add services to the container
+builder.Services.AddControllers();
 builder.Services.AddRequestTimeouts(options => {
     options.DefaultPolicy =
         new RequestTimeoutPolicy { Timeout = TimeSpan.FromMilliseconds(1500) };
     options.AddPolicy("MyPolicy", TimeSpan.FromSeconds(2));
+});
+
+// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(gen =>
+{
+    gen.SwaggerDoc("v1", new OpenApiInfo { Title = "PowerConsumptionOptimizer", Contact = new OpenApiContact { Name = "StyxUT", Email = "StyxUT@gmail.com" }, Version = "v1" });
+
+    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+
+    gen.IncludeXmlComments(xmlPath);
+
+    gen.CustomOperationIds(apiDescription =>
+    {
+        return apiDescription.TryGetMethodInfo(out MethodInfo methodInfo) ? methodInfo.Name : null;
+    });
 });
 
 static IHostBuilder CreateHostBuilder() =>
@@ -96,13 +118,32 @@ static IHostBuilder CreateHostBuilder() =>
 
                 return new ConsumptionOptimizer(logger, helperSettings, vehicleSettings, consumptionOptimizerSettings, powerProduction, teslaControl);
             });
-
         })
         .UseSerilog();
 
-Log.Information($"Power Consumption Optimizer - Starting v0.04");
+
+var app = builder.Build();
+
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.UseDeveloperExceptionPage();
+    app.UseSwagger();
+    app.UseSwaggerUI(gen =>
+    {
+        gen.DisplayOperationId();
+    });
+}
+
+app.UseHttpsRedirection();
+
+app.MapControllers();
+
 var instance = ActivatorUtilities.CreateInstance<ConsumptionOptimizer>(host.Services);
 await instance.Optimize();
+
+app.Run();
+
 
 Log.Information($"Power Consumption Optimizer - Exiting");
 Log.CloseAndFlush();
