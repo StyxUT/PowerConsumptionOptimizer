@@ -140,8 +140,14 @@ namespace PowerConsumptionOptimizer
                 {
                     var nextMet = await GetSolarDataDateTimeAsync("IrradianceThresholdNextMet", $"threshold={threshold}");
                     sleepDuration = (int)nextMet.Subtract(now).TotalMinutes - 30;
-
+                    
                     tokenSource.Cancel(); //cancel tasks
+
+                    // stop all charging before sleeping
+                    foreach (Vehicle vehicle in vehicles)
+                    {
+                        SetChargeRate(vehicle, 0);
+                    }
 
                     output.AppendLine($"Pause active monitoring until {DateTime.UtcNow.AddMinutes(sleepDuration)} UTC");
                     output.AppendLine($"\t reduced monitoring while solar irradiance is below threshold");
@@ -151,6 +157,12 @@ namespace PowerConsumptionOptimizer
                 {
                     tokenSource.Cancel(); //cancel tasks
                     sleepDuration *= 3;
+
+                    // stop all charging before sleeping
+                    foreach (Vehicle vehicle in vehicles)
+                    {
+                        SetChargeRate(vehicle, 0);
+                    }
 
                     output.AppendLine($"Pause active monitoring until {DateTime.UtcNow.AddMinutes(sleepDuration)} UTC");
                     output.AppendLine($"\t all vehicles are either at their charge limit or unavailable for charging");
@@ -219,7 +231,6 @@ namespace PowerConsumptionOptimizer
             }
         }
 
-
         private async Task<DateTime> GetSolarDataDateTimeAsync(string method, string queryStringParams)
         {
             HttpClient httpClient = new();
@@ -272,12 +283,12 @@ namespace PowerConsumptionOptimizer
             }
         }
 
-/// <summary>
-/// Cycles though a list of vehicles and if needed, refreshes their Charge State
-/// </summary>
-/// <param name="vehicles"></param>
-/// <param name="sleepDuration">second so sleep between loops</param>
-private void RefreshVehicleChargeState(List<Vehicle> vehicles, int sleepDuration)
+        /// <summary>
+        /// Cycles though a list of vehicles and if needed, refreshes their Charge State
+        /// </summary>
+        /// <param name="vehicles"></param>
+        /// <param name="sleepDuration">second so sleep between loops</param>
+        private void RefreshVehicleChargeState(List<Vehicle> vehicles, int sleepDuration)
         {
             while (!cancelationToken.IsCancellationRequested)
             {
@@ -301,9 +312,9 @@ private void RefreshVehicleChargeState(List<Vehicle> vehicles, int sleepDuration
                         output.Clear();
                     }
                 }
-                catch ( Exception ex ) 
-                { 
-                    _logger.LogCritical(ex.Message); 
+                catch (Exception ex)
+                {
+                    _logger.LogCritical(ex.Message);
                 }
                 cancelationToken.WaitHandle.WaitOne(TimeSpan.FromMinutes(sleepDuration));
             }
