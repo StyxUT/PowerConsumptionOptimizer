@@ -2,6 +2,7 @@
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Polly;
+using System.Linq.Expressions;
 using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -46,15 +47,23 @@ namespace PowerProduction
         public double? GetNetPowerProduction()
         {
             StringBuilder stringBuilder = new();
-
+            double? netPowerProduction = 0;
             stringBuilder.AppendLine($"EnphaseLocal - GetNetPowerProduction");
+            try
+            {
+                netPowerProduction = GetMeterDataAsync().Result.Watts * -1; // multiply net consumption by -1 to convert to net production
 
-            var netPowerProduction = GetMeterDataAsync().Result.Watts * -1; // multiply net consumption by -1 to convert to net production
 
-            stringBuilder.Append($"\t Net Power Production: {netPowerProduction} watts");
+                stringBuilder.Append($"\t Net Power Production: {netPowerProduction ?? 0} watts");
 
-            _logger.LogInformation(stringBuilder.ToString());
-            return netPowerProduction;
+                _logger.LogInformation(stringBuilder.ToString());
+            }
+            catch (Exception ex)
+            {
+                _logger.LogCritical("GetNetPowerProduction - critical failure");
+            }
+            
+            return netPowerProduction ?? 0;
         }
 
         internal async Task<NetConsumption>? GetMeterDataAsync()

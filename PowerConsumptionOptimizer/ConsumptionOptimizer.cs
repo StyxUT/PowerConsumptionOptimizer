@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
+using TeslaAPI.Models.Vehicles;
 using TeslaControl;
 
 [assembly: InternalsVisibleTo("PowerConsumptionOptimizer.Tests")]
@@ -80,7 +81,7 @@ namespace PowerConsumptionOptimizer
 
                     //Called to ensure charge priority has been set prior to monitoring to prevent unintended sleeping when application starts
                     //RefreshVehicleChargePriority(vehicles, 0);
-                    tasks.Add(Task.Run(() => DetermineMonitorCharging(1)));
+                    tasks.Add(Task.Run(() => DetermineMonitorCharging(10)));
 
                     //wait until all the tasks in the list are completed
                     await Task.WhenAll(tasks); //throws an exception when a task is canceled using the cancelation token
@@ -132,8 +133,8 @@ namespace PowerConsumptionOptimizer
                     _logger.LogTrace("Power Consumption Optimizer - calling forecast SolarIrradianceCurrentHour");
                     success = double.TryParse(await GetSolarDataValueAsync("SolarIrradianceCurrentHour", ""), out double responseCurrentHour);
                     currentHour = responseCurrentHour;
-                    if (!success)
-                        await Task.Delay(900000);
+                    if (!success || currentHour is null)
+                        await Task.Delay(600000); // 10 minutes
                 }
 
                 if (currentHour < threshold)
@@ -190,7 +191,7 @@ namespace PowerConsumptionOptimizer
             httpClient.DefaultRequestHeaders.Accept.Clear();
             httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("Application/json"));
 
-            httpClient.Timeout = TimeSpan.FromSeconds(5);
+            httpClient.Timeout = TimeSpan.FromSeconds(25);
 
             stringBuilder.Append("AccuWeather - GetForecast");
 
@@ -242,7 +243,7 @@ namespace PowerConsumptionOptimizer
             httpClient.DefaultRequestHeaders.Accept.Clear();
             httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("Application/json"));
 
-            httpClient.Timeout = TimeSpan.FromSeconds(5);
+            httpClient.Timeout = TimeSpan.FromSeconds(25);
 
             stringBuilder.Append("AccuWeather - GetForecast");
 
@@ -317,6 +318,31 @@ namespace PowerConsumptionOptimizer
                     _logger.LogCritical(ex.Message);
                 }
                 cancelationToken.WaitHandle.WaitOne(TimeSpan.FromMinutes(sleepDuration));
+            }
+        }
+
+        /// <summary>
+        /// Cycles though a list of vehicles and if needed, refreshes their Charge State
+        /// </summary>
+        /// <param name="vehicles"></param>
+        /// <param name="sleepDuration">second so sleep between loops</param>
+        private void RefreshVehicleChargeState(List<Vehicle> vehicles)
+        {
+            StringBuilder output = new();
+            try
+            {
+                foreach (Vehicle vehicle in vehicles)
+                {
+                    output.AppendLine($"{vehicle.Name} - GetVehicleChargeState");
+                    vehicle.ChargeState = _teslaControl.GetVehicleChargeStateAsync(vehicle.Id).Result;
+                }
+                output.Append($"\t charge priority changed");
+                _logger.LogInformation(output.ToString());
+                output.Clear();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogCritical(ex.Message);
             }
         }
 
@@ -517,6 +543,8 @@ namespace PowerConsumptionOptimizer
         {
             Dictionary<string, double> priority = new();
             StringBuilder reason = new();
+            string currentPriorityVehicle = "";
+
             reason.AppendLine("Determine Vehicle Charging Priority");
 
             foreach (Vehicle vehicle in vehicles)
@@ -540,6 +568,7 @@ namespace PowerConsumptionOptimizer
                 // give slight preference to vehicle that currently has priority
                 if (vehicle.IsPriority)
                 {
+                    currentPriorityVehicle = vehicle.Id;
                     priorityScore += .001;
                     reason.AppendLine($"\t {vehicle.Name} - was given .001 priority points for currently having priority");
                 }
@@ -569,6 +598,14 @@ namespace PowerConsumptionOptimizer
                 }
 
                 var priorityVehicle = GetPriorityVehicle();
+
+                // priority changed, update charge state and check again
+                if (priorityVehicle is not null && priorityVehicle.Id != currentPriorityVehicle)
+                {
+                    RefreshVehicleChargeState(vehicles);
+                    DetermineChargingPriority(vehicles);
+                }
+
                 reason.AppendLine($"\t {priorityVehicle.Name} - was given charging priority");
             }
             else

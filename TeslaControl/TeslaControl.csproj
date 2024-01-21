@@ -8,9 +8,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Polly" Version="8.2.0" />
+    <PackageReference Include="Polly" Version="8.2.1" />
     <PackageReference Include="Serilog.Extensions.Logging" Version="8.0.0" />
-    <PackageReference Include="Tesla-API" Version="1.1.2" />
+    <PackageReference Include="Tesla-API" Version="1.1.3" />
   </ItemGroup>
 
 </Project>
