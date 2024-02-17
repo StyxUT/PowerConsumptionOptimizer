@@ -18,7 +18,6 @@ namespace PowerConsumptionOptimizer.Tests
         private Mock<IOptionsMonitor<VehicleSettings>> _vehicleSettingsMock;
         private Mock<IOptionsMonitor<ConsumptionOptimizerSettings>> _consumptionOptimizerSettingsMock;
         private readonly Mock<IPowerProduction> _powerProductionMock;
-        //private readonly Mock<IForecast> _forecastMock;
         private readonly Mock<ITeslaControl> _teslaControlMock;
         private readonly List<Vehicle> vehicles;
 
@@ -29,7 +28,6 @@ namespace PowerConsumptionOptimizer.Tests
             _helperSettingsMock = new Mock<IOptionsMonitor<HelperSettings>>();
             _consumptionOptimizerSettingsMock = new Mock<IOptionsMonitor<ConsumptionOptimizerSettings>>();
             _powerProductionMock = new Mock<IPowerProduction>();
-            //_forecastMock = new Mock<IForecast>();
             _teslaControlMock = new Mock<ITeslaControl>();
 
             VehicleSettings vehicleSettings = new VehicleSettings() { };

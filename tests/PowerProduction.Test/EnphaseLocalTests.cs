@@ -1,10 +1,7 @@
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
-using System;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Reflection;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -16,11 +13,12 @@ namespace PowerProduction.Tests
         private readonly EnphaseLocal _enphaseLocal;
         private readonly Mock<ILogger<EnphaseLocal>> _loggerMock;
         private readonly HttpClient _httpClient;
+        private readonly string _envoyToken;
 
         public EnphaseLocalTests()
         {
             _loggerMock = new Mock<ILogger<EnphaseLocal>>();
-            _enphaseLocal = new EnphaseLocal(_loggerMock.Object);
+            _enphaseLocal = new EnphaseLocal(_loggerMock.Object, _envoyToken);
             _httpClient = new HttpClient();
         }
 
@@ -29,7 +27,7 @@ namespace PowerProduction.Tests
         public async Task GetMeterDataAsync_ResultIsNotNull()
         {
             // Arrange
-            _enphaseLocal.GetType().GetProperty("client")?.SetValue(_enphaseLocal, _httpClient);
+            _enphaseLocal.GetType().GetProperty("_client")?.SetValue(_enphaseLocal, _httpClient);
             _httpClient.DefaultRequestHeaders.Accept.Clear();
             _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("Applicaiton/json"));
 
@@ -61,7 +59,7 @@ namespace PowerProduction.Tests
         [Fact]
         public void EnphaseLocal_GetNetPowerProduction_IsNotNull()
         {
-            _enphaseLocal.GetType().GetProperty("client")?.SetValue(_enphaseLocal, _httpClient);
+            _enphaseLocal.GetType().GetProperty("_client")?.SetValue(_enphaseLocal, _httpClient);
             _httpClient.DefaultRequestHeaders.Accept.Clear();
             _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("Applicaiton/json"));
 

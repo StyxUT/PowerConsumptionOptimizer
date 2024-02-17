@@ -69,6 +69,7 @@ static IHostBuilder CreateHostBuilder() =>
             services.Configure<TeslaSettings>(configuration.GetSection(nameof(TeslaSettings)));
             services.Configure<HelperSettings>(configuration.GetSection(nameof(HelperSettings)));
             services.Configure<VehicleSettings>(configuration.GetSection(nameof(VehicleSettings)));
+            services.Configure<PowerProductionSettings>(configuration.GetSection(nameof(PowerProductionSettings)));
             services.Configure<ConsumptionOptimizerSettings>(configuration.GetSection(nameof(ConsumptionOptimizerSettings)));
 
             services.AddTeslaApi();
@@ -82,14 +83,19 @@ static IHostBuilder CreateHostBuilder() =>
                 return new TeslaControl.TeslaControl(logger, teslaApi, teslaSettings.Value.TeslaRefreshToken);
             });
 
-            services.AddTransient<IPowerProduction, EnphaseLocal>();
+            services.AddSingleton<IPowerProduction, EnphaseLocal>(serviceProvider =>
+            {
+                var logger = serviceProvider.GetService<ILogger<EnphaseLocal>>();
+                var powerProductionSettings = serviceProvider.GetRequiredService<IOptionsSnapshot<PowerProductionSettings>>();
+                return new EnphaseLocal(logger, powerProductionSettings.Value.EnvoyToken);
+            });
 
             // Register ConsumptionOptimizer using IOptionsSnapshot
             services.AddTransient<IConsumptionOptimizer, ConsumptionOptimizer>(serviceProvider =>
             {
+                var logger = serviceProvider.GetService<ILogger<ConsumptionOptimizer>>();
                 var teslaControl = serviceProvider.GetService<ITeslaControl>();
                 var powerProduction = serviceProvider.GetService<IPowerProduction>();
-                var logger = serviceProvider.GetService<ILogger<ConsumptionOptimizer>>();
                 var consumptionOptimizerSettings = serviceProvider.GetRequiredService<IOptionsMonitor<ConsumptionOptimizerSettings>>();
                 var helperSettings = serviceProvider.GetRequiredService<IOptionsMonitor<HelperSettings>>();
                 var vehicleSettings = serviceProvider.GetRequiredService<IOptionsMonitor<VehicleSettings>>();
@@ -100,7 +106,7 @@ static IHostBuilder CreateHostBuilder() =>
         })
         .UseSerilog();
 
-Log.Information($"Power Consumption Optimizer - Starting v0.04");
+Log.Information($"Power Consumption Optimizer - Starting v0.05");
 var instance = ActivatorUtilities.CreateInstance<ConsumptionOptimizer>(host.Services);
 await instance.Optimize();
 

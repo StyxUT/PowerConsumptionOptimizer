@@ -32,4 +32,10 @@ namespace ConfigurationSettings
         public const string TS = "TeslaSettings";
         public string TeslaRefreshToken { get; set; }
     }
+
+    public class PowerProductionSettings
+    {
+        public const string PPS = "PowerProductionSettings";
+        public string EnvoyToken { get; set; }
+    }
 }
