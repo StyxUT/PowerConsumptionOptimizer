@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using PowerProduction;
 using System.Collections.Generic;
+using TeslaAPI.Models.Vehicles;
 using TeslaControl;
 using Xunit;
 
@@ -170,11 +171,13 @@ namespace PowerConsumptionOptimizer.Tests
             v1.ChargeState = new TeslaAPI.Models.Vehicles.ChargeState();
             v1.ChargeState.BatteryLevel = v1_batteryLevel;
             v1.ChargeState.ChargeLimitStateOfCharge = v1_chargeLimitStateOfCharge;
+            v1.ChargeState.ChargingState = "Charging";
             v1.IsPriority = v1_isPriority;
 
             v2.ChargeState = new TeslaAPI.Models.Vehicles.ChargeState();
             v2.ChargeState.BatteryLevel = v2_batteryLevel;
             v2.ChargeState.ChargeLimitStateOfCharge = v2_chargeLimitStateOfCharge;
+            v2.ChargeState.ChargingState = "Charging";
 
             vehicles.Add(v1);
             vehicles.Add(v2);
@@ -203,11 +206,14 @@ namespace PowerConsumptionOptimizer.Tests
             v1.ChargeState = new TeslaAPI.Models.Vehicles.ChargeState();
             v1.ChargeState.BatteryLevel = v1_batteryLevel;
             v1.ChargeState.ChargeLimitStateOfCharge = v1_chargeLimitStateOfCharge;
+            v1.ChargeState.ChargingState = "Charging";
             v1.IsPriority = v1_isPriority;
+
 
             v2.ChargeState = new TeslaAPI.Models.Vehicles.ChargeState();
             v2.ChargeState.BatteryLevel = v2_batteryLevel;
             v2.ChargeState.ChargeLimitStateOfCharge = v2_chargeLimitStateOfCharge;
+            v2.ChargeState.ChargingState = "Charging";
 
             vehicles.Add(v1);
             vehicles.Add(v2);
@@ -220,6 +226,36 @@ namespace PowerConsumptionOptimizer.Tests
             //assert
             Assert.True(v2.IsPriority);
             Assert.False(v1.IsPriority);
+        }
+
+        [Fact]
+        public void PowerConsumptionOptimizer_DetermineChargingPriority_AllFalse()
+        {
+            //arrange
+            List<Vehicle> vehicles = new List<Vehicle>();
+
+            var v1 = new Vehicle { Name = "test vehicle 1", Id = "1" };
+            var v2 = new Vehicle { Name = "test vehicle 2", Id = "2" };
+            
+            v1.ChargeState = new TeslaAPI.Models.Vehicles.ChargeState();
+            v1.IsPriority = true;
+            v1.ChargeState.ChargingState = "Disconnected";
+
+            v2.ChargeState = new TeslaAPI.Models.Vehicles.ChargeState();
+            v2.IsPriority = true;
+            v2.ChargeState.ChargingState = "Complete";
+
+            vehicles.Add(v1);
+            vehicles.Add(v2);
+
+            _consumptionOptimizer.vehicles = vehicles;
+
+            //act
+            var vehicle = _consumptionOptimizer.DetermineChargingPriority(vehicles);
+
+            //assert
+            Assert.False(v1.IsPriority);
+            Assert.False(v2.IsPriority);
         }
 
         [Theory]
@@ -274,7 +310,7 @@ namespace PowerConsumptionOptimizer.Tests
             _consumptionOptimizer.vehicles = vehicles;
 
             //act
-            var vehicle = _consumptionOptimizer.GetPriorityVehicle();
+            var vehicle = _consumptionOptimizer.GetPriorityVehicle(vehicles);
 
             //assert
             Assert.Null(vehicle);
@@ -300,7 +336,7 @@ namespace PowerConsumptionOptimizer.Tests
             _consumptionOptimizer.vehicles = vehicles;
 
             //act
-            var vehicle = _consumptionOptimizer.GetPriorityVehicle();
+            var vehicle = _consumptionOptimizer.GetPriorityVehicle(vehicles);
 
             //assert
             Assert.Equal(expected, vehicle.Id);

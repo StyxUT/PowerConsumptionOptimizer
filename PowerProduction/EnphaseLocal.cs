@@ -57,12 +57,13 @@ namespace PowerProduction
 
         public double? GetNetPowerProduction()
         {
-            StringBuilder stringBuilder = new();
             double? netPowerProduction = 0;
+
+            StringBuilder stringBuilder = new();
             stringBuilder.AppendLine($"EnphaseLocal - GetNetPowerProduction");
             try
             {
-                netPowerProduction = GetMeterDataAsync().Result.Watts * -1; // multiply net consumption by -1 to convert to net production
+                netPowerProduction = retryOnException.ExecuteAsync(action => GetMeterDataAsync(), context: new Context("GetNetPowerProduction")).Result.Watts * -1; // multiply net consumption by -1 to convert to net production
 
                 stringBuilder.Append($"\t Net Power Production: {netPowerProduction ?? 0} watts");
 

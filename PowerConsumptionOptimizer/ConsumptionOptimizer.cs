@@ -154,7 +154,7 @@ namespace PowerConsumptionOptimizer
                     output.AppendLine($"\t reduced monitoring while solar irradiance is below threshold");
                     monitor = false;
                 }
-                else if (GetPriorityVehicle() is null)
+                else if (GetPriorityVehicle(vehicles) is null)
                 {
                     tokenSource.Cancel(); //cancel tasks
                     sleepDuration *= 3;
@@ -334,7 +334,9 @@ namespace PowerConsumptionOptimizer
                 foreach (Vehicle vehicle in vehicles)
                 {
                     output.AppendLine($"{vehicle.Name} - GetVehicleChargeState");
-                    vehicle.ChargeState = _teslaControl.GetVehicleChargeStateAsync(vehicle.Id).Result;
+                    var chargeState = _teslaControl.GetVehicleChargeStateAsync(vehicle.Id).Result;
+                    if (chargeState != null)
+                        vehicle.ChargeState = _teslaControl.GetVehicleChargeStateAsync(vehicle.Id).Result;
                 }
                 output.Append($"\t charge priority changed");
                 _logger.LogInformation(output.ToString());
@@ -543,8 +545,8 @@ namespace PowerConsumptionOptimizer
         {
             Dictionary<string, double> priority = new();
             StringBuilder reason = new();
-            string currentPriorityVehicle = "";
-
+            Vehicle? currentPriorityVehicle = GetPriorityVehicle(vehicles);
+    
             reason.AppendLine("Determine Vehicle Charging Priority");
 
             foreach (Vehicle vehicle in vehicles)
@@ -558,17 +560,16 @@ namespace PowerConsumptionOptimizer
                     reason.AppendLine($"\t {vehicle.Name} - was deducted 10 priority points for being disconnected from a charger");
                 }
 
-                //deduct 1 point charging being complete
+                //deduct 10 point charging being complete
                 if (vehicle.ChargeState.ChargingState == "Complete")
                 {
-                    priorityScore += -1;
+                    priorityScore += -10;
                     reason.AppendLine($"\t {vehicle.Name} - was deducted 1 priority point for being at charge limit");
                 }
 
                 // give slight preference to vehicle that currently has priority
                 if (vehicle.IsPriority)
                 {
-                    currentPriorityVehicle = vehicle.Id;
                     priorityScore += .001;
                     reason.AppendLine($"\t {vehicle.Name} - was given .001 priority points for currently having priority");
                 }
@@ -588,8 +589,7 @@ namespace PowerConsumptionOptimizer
                 priority.Add(vehicle.Id, priorityScore);
             }
 
-            if (priority.Where(v => v.Value > 0.011).Any())
-            {
+            if (priority.Where(v => v.Value > 0.011).Any()) {
                 var priorityVehicleId = priority.OrderByDescending(v => v.Value).First().Key;
 
                 foreach (Vehicle vehicle in vehicles)
@@ -597,11 +597,13 @@ namespace PowerConsumptionOptimizer
                     vehicle.IsPriority = vehicle.Id == priorityVehicleId;
                 }
 
-                var priorityVehicle = GetPriorityVehicle();
+                var priorityVehicle = GetPriorityVehicle(vehicles);
 
-                // priority changed, update charge state and check again
-                if (priorityVehicle is not null && priorityVehicle.Id != currentPriorityVehicle)
+                // priority changed, update charge state and check priority again
+                if (priorityVehicle is not null && (currentPriorityVehicle is null || priorityVehicle.Id != currentPriorityVehicle.Id))
                 {
+                    reason.AppendLine($"\t charging priority changed - refreshing vehicle charge state");
+
                     RefreshVehicleChargeState(vehicles);
                     DetermineChargingPriority(vehicles);
                 }
@@ -620,7 +622,7 @@ namespace PowerConsumptionOptimizer
             return reason.ToString().TrimEnd('\n');
         }
 
-        public Vehicle? GetPriorityVehicle()
+        public Vehicle? GetPriorityVehicle(List<Vehicle> vehicles)
         {
             foreach (Vehicle vehicle in vehicles)
             {
