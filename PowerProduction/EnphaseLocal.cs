@@ -71,8 +71,9 @@ namespace PowerProduction
             }
             catch (Exception ex)
             {
-                
                 _logger.LogCritical("GetNetPowerProduction - critical failure");
+                _logger.LogCritical(ex.Message.ToString());
+                _logger.LogCritical(ex.InnerException.ToString());
             }
             
             return netPowerProduction ?? 0;
@@ -80,7 +81,6 @@ namespace PowerProduction
 
         internal async Task<NetConsumption>? GetMeterDataAsync()
         {
-            StringBuilder stringBuilder = new();
             _logger.LogDebug($"EnphaseLocal - GetMeterDataAsync");
 
             if (SessionId is null)
@@ -113,9 +113,12 @@ namespace PowerProduction
                 }
                 else
                 {
+                    StringBuilder stringBuilder = new();
                     stringBuilder.AppendLine($"!{System.Reflection.MethodBase.GetCurrentMethod()} Unsuccessful...");
                     stringBuilder.AppendLine($"ResponseCode: {response.StatusCode}");
                     stringBuilder.Append($"ReasonPhrase: {response.ReasonPhrase}");
+                    _logger.LogError(stringBuilder.ToString());
+
                     var result = await response.Content.ReadAsStringAsync();
                     _logger.LogError($"{result}");
                     return null;
@@ -151,8 +154,6 @@ namespace PowerProduction
             {
                 HttpResponseMessage response = await retryOnException.ExecuteAsync(async action => await _client.GetAsync(path), new Context($"{System.Reflection.MethodBase.GetCurrentMethod()}"));
 
-                StringBuilder stringBuilder = new();
-
                 if (response.IsSuccessStatusCode)
                 {
                     // Extract the sessionId from the response headers
@@ -163,9 +164,11 @@ namespace PowerProduction
                 }
                 else
                 {
+                    StringBuilder stringBuilder = new();
                     stringBuilder.AppendLine($"!{System.Reflection.MethodBase.GetCurrentMethod()} Unsuccessful...");
                     stringBuilder.AppendLine($"ResponseCode: {response.StatusCode}");
                     stringBuilder.Append($"ReasonPhrase: {response.ReasonPhrase}");
+                    _logger.LogError(stringBuilder.ToString());
                     var result = await response.Content.ReadAsStringAsync();
                     _logger.LogError($"{result}");
                 }
