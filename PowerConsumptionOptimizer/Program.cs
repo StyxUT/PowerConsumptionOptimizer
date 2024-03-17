@@ -106,7 +106,7 @@ static IHostBuilder CreateHostBuilder() =>
         })
         .UseSerilog();
 
-Log.Information($"Power Consumption Optimizer - Starting v0.05");
+Log.Information($"Power Consumption Optimizer - Starting v0.06");
 var instance = ActivatorUtilities.CreateInstance<ConsumptionOptimizer>(host.Services);
 await instance.Optimize();
 

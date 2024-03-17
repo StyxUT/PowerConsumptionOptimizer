@@ -76,12 +76,12 @@ namespace PowerConsumptionOptimizer
                         }
                     });
 
-                    tasks.Add(Task.Run(() => RefreshVehicleChargePriority(30), tokenSource.Token));
+                    tasks.Add(Task.Run(() => RefreshVehicleChargePriority(3), tokenSource.Token));
                     tasks.Add(Task.Run(() => RefreshNetPowerProduction(vehicles, 1), tokenSource.Token));
 
                     //Called to ensure charge priority has been set prior to monitoring to prevent unintended sleeping when application starts
                     //RefreshVehicleChargePriority(vehicles, 0);
-                    tasks.Add(Task.Run(() => DetermineMonitorCharging(10)));
+                    tasks.Add(Task.Run(() => DetermineMonitorCharging(30)));
 
                     //wait until all the tasks in the list are completed
                     await Task.WhenAll(tasks); //throws an exception when a task is canceled using the cancelation token
@@ -128,16 +128,14 @@ namespace PowerConsumptionOptimizer
                 double? currentHour = null;
                 bool success = false;
 
-                while (!success)
-                {
-                    _logger.LogTrace("Power Consumption Optimizer - calling forecast SolarIrradianceCurrentHour");
-                    success = double.TryParse(await GetSolarDataValueAsync("SolarIrradianceCurrentHour", ""), out double responseCurrentHour);
-                    currentHour = responseCurrentHour;
-                    if (!success || currentHour is null)
-                        await Task.Delay(600000); // 10 minutes
-                }
+                output.AppendLine("Calling forecast SolarIrradianceCurrentHour");
+                success = double.TryParse(await GetSolarDataValueAsync("SolarIrradianceCurrentHour", ""), out double responseCurrentHour);
+                currentHour = responseCurrentHour;
 
-                if (currentHour < threshold)
+                if (!success)
+                    output.AppendLine("\t call to SolarIrradianceCurrentHour failed");
+  
+                if (success && currentHour < threshold)
                 {
                     var nextMet = await GetSolarDataDateTimeAsync("IrradianceThresholdNextMet", $"threshold={threshold}");
                     sleepDuration = (int)nextMet.Subtract(now).TotalMinutes - 30;
@@ -151,7 +149,7 @@ namespace PowerConsumptionOptimizer
                     }
 
                     output.AppendLine($"Pause active monitoring until {DateTime.UtcNow.AddMinutes(sleepDuration)} UTC");
-                    output.AppendLine($"\t reduced monitoring while solar irradiance is below threshold");
+                    output.AppendLine($"\t reduced monitoring while solar irradiance is below threshold of {threshold}");
                     monitor = false;
                 }
                 else if (GetPriorityVehicle(vehicles) is null)
@@ -172,7 +170,7 @@ namespace PowerConsumptionOptimizer
                 else
                 {
                     output.AppendLine("Continuing active monitoring");
-                    output.AppendLine($"\t SolarIrradiance is greater than {threshold} durring the current hour");
+                    output.AppendLine($"\t SolarIrradiance is greater than {threshold} during the current hour");
                 }
                 _logger.LogInformation(output.ToString().TrimEnd('\n'));
                 output.Clear();
@@ -191,7 +189,7 @@ namespace PowerConsumptionOptimizer
             httpClient.DefaultRequestHeaders.Accept.Clear();
             httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("Application/json"));
 
-            httpClient.Timeout = TimeSpan.FromSeconds(25);
+            httpClient.Timeout = TimeSpan.FromSeconds(10);
 
             stringBuilder.Append("AccuWeather - GetForecast");
 
@@ -218,9 +216,9 @@ namespace PowerConsumptionOptimizer
                     return null;
                 }
             }
-            catch (TaskCanceledException)
+            catch (TaskCanceledException ex)
             {
-                stringBuilder.AppendLine("Request timed out.");
+                stringBuilder.AppendLine($"Request timed out. Exception: {ex.Message}");
                 _logger.LogWarning(stringBuilder.ToString().TrimEnd('\n'));
                 return null;
             }
