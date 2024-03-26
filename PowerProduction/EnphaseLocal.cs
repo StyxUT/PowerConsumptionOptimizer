@@ -88,7 +88,7 @@ namespace PowerProduction
                 await ReauthorizeAsync();
             }
 
-            _client.DefaultRequestHeaders.Accept.Clear();
+            _client.DefaultRequestHeaders.Clear();
             _client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             _client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("text/javascript"));
             _client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("*/*", 0.01));
@@ -114,7 +114,7 @@ namespace PowerProduction
                 else
                 {
                     StringBuilder stringBuilder = new();
-                    stringBuilder.AppendLine($"!{System.Reflection.MethodBase.GetCurrentMethod()} Unsuccessful...");
+                    stringBuilder.AppendLine($"GetMeterDataAsync - !{System.Reflection.MethodBase.GetCurrentMethod()} Unsuccessful...");
                     stringBuilder.AppendLine($"ResponseCode: {response.StatusCode}");
                     stringBuilder.Append($"ReasonPhrase: {response.ReasonPhrase}");
                     _logger.LogError(stringBuilder.ToString());
@@ -143,7 +143,7 @@ namespace PowerProduction
         {
             _logger.LogDebug($"EnphaseLocal - Reauthorize");
 
-            _client.DefaultRequestHeaders.Accept.Clear();
+            _client.DefaultRequestHeaders.Clear();
             _client.DefaultRequestHeaders.Add("Accept", "*/*");
             _client.DefaultRequestHeaders.Add("Referrer", $"{BaseURL}/home");
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", $"{_envoyToken}");
@@ -165,7 +165,7 @@ namespace PowerProduction
                 else
                 {
                     StringBuilder stringBuilder = new();
-                    stringBuilder.AppendLine($"!{System.Reflection.MethodBase.GetCurrentMethod()} Unsuccessful...");
+                    stringBuilder.AppendLine($"ReauthorizeAsync - !{System.Reflection.MethodBase.GetCurrentMethod()} Unsuccessful...");
                     stringBuilder.AppendLine($"ResponseCode: {response.StatusCode}");
                     stringBuilder.Append($"ReasonPhrase: {response.ReasonPhrase}");
                     _logger.LogError(stringBuilder.ToString());

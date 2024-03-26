@@ -175,6 +175,7 @@ namespace PowerConsumptionOptimizer
                 _logger.LogInformation(output.ToString().TrimEnd('\n'));
                 output.Clear();
                 await Task.Delay(TimeSpan.FromMinutes(sleepDuration));
+
             }
         }
 
