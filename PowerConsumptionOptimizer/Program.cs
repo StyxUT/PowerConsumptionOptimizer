@@ -13,7 +13,7 @@ using TeslaControl;
 
 
 //TODO: Consider if vehicle charge level is below override level but there is no solar production (app would be paused)
-//TODO: Use different cancelation token for program exit?
+//TODO: Use different cancellation token for program exit?
 //TODO: Update & Add tests for new PCO methods
 //TODO: Update & Add tests for new Helper methods
 //TODO: Add comments to public and internal methods

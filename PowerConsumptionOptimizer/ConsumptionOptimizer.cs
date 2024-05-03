@@ -2,13 +2,11 @@
 using Microsoft.Extensions.Options;
 using PowerConsumptionOptimizer.Forecast;
 using PowerProduction;
-using System.Data.SqlTypes;
 using System.Net.Http.Headers;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
-using TeslaAPI.Models.Vehicles;
 using TeslaControl;
 
 [assembly: InternalsVisibleTo("PowerConsumptionOptimizer.Tests")]
@@ -27,9 +25,9 @@ namespace PowerConsumptionOptimizer
         internal List<Vehicle> vehicles;
 
         private static CancellationTokenSource tokenSource = new();
-        private static CancellationToken cancelationToken;
+        private static CancellationToken cancellationToken;
 
-        private static bool exit = false;
+        private static bool exit;
 
         public ConsumptionOptimizer(ILogger<ConsumptionOptimizer> logger, IOptionsMonitor<HelperSettings> helperSettings, IOptionsMonitor<VehicleSettings> vehicleSettings,
             IOptionsMonitor<ConsumptionOptimizerSettings> consumptionOptimizerSettings, IPowerProduction powerProduction, ITeslaControl teslaControl)
@@ -55,24 +53,24 @@ namespace PowerConsumptionOptimizer
                 {
                     tasks = new();
                     tokenSource = new();
-                    cancelationToken = tokenSource.Token;
+                    cancellationToken = tokenSource.Token;
 
                     if (vehicles.Count == 0)
                     {
                         _logger.LogError("No vehicles configured.\n Exiting...");
                         exit = true;
-                        System.Environment.Exit(1);
+                        Environment.Exit(1);
                     }
 
                     tasks.Add(Task.Run(() => RefreshVehicleChargeState(vehicles, 15), tokenSource.Token));
                     Thread.Sleep(5000); //sleep for a short time to improve messaging
-                    await Parallel.ForEachAsync(vehicles, async (vehicle, cancelationToken) =>
+                    await Parallel.ForEachAsync(vehicles, async (vehicle, cancellationToken) =>
                     {
                         //delay until vehicle charge state has been updated for the first time
                         while (vehicle.ChargeState == null)
                         {
                             _logger.LogDebug($"{@vehicle.Name} - Still waiting for ChargeState refresh");
-                            await Task.Delay(TimeSpan.FromSeconds(15), cancelationToken);
+                            await Task.Delay(TimeSpan.FromSeconds(15), cancellationToken);
                         }
                     });
 
@@ -84,7 +82,7 @@ namespace PowerConsumptionOptimizer
                     tasks.Add(Task.Run(() => DetermineMonitorCharging(30)));
 
                     //wait until all the tasks in the list are completed
-                    await Task.WhenAll(tasks); //throws an exception when a task is canceled using the cancelation token
+                    await Task.WhenAll(tasks); //throws an exception when a task is canceled using the cancellation token
                 }
                 catch (TaskCanceledException ex)
                 {
@@ -125,12 +123,11 @@ namespace PowerConsumptionOptimizer
                 DateTime now = DateTime.UtcNow;
                 output.Append($"Power Consumption Optimizer - ");
                 int threshold = _consumptionOptimizerSettings.CurrentValue.IrradianceSleepThreshold;
-                double? currentHour = null;
-                bool success = false;
+                bool success;
 
                 output.AppendLine("Calling forecast SolarIrradianceCurrentHour");
                 success = double.TryParse(await GetSolarDataValueAsync("SolarIrradianceCurrentHour", ""), out double responseCurrentHour);
-                currentHour = responseCurrentHour;
+                double? currentHour = responseCurrentHour;
 
                 if (!success)
                     output.AppendLine("\t call to SolarIrradianceCurrentHour failed");
@@ -290,7 +287,7 @@ namespace PowerConsumptionOptimizer
         /// <param name="sleepDuration">second so sleep between loops</param>
         private void RefreshVehicleChargeState(List<Vehicle> vehicles, int sleepDuration)
         {
-            while (!cancelationToken.IsCancellationRequested)
+            while (!cancellationToken.IsCancellationRequested)
             {
                 StringBuilder output = new();
 
@@ -316,7 +313,7 @@ namespace PowerConsumptionOptimizer
                 {
                     _logger.LogCritical(ex.Message);
                 }
-                cancelationToken.WaitHandle.WaitOne(TimeSpan.FromMinutes(sleepDuration));
+                cancellationToken.WaitHandle.WaitOne(TimeSpan.FromMinutes(sleepDuration));
             }
         }
 
@@ -349,11 +346,11 @@ namespace PowerConsumptionOptimizer
 
         private void RefreshVehicleChargePriority(int sleepDuration)
         {
-            while (!cancelationToken.IsCancellationRequested)
+            while (!cancellationToken.IsCancellationRequested)
             {
                 var resultLog = DetermineChargingPriority(vehicles);
-                _logger.LogInformation(resultLog.ToString());
-                cancelationToken.WaitHandle.WaitOne(TimeSpan.FromMinutes(sleepDuration));
+                _logger.LogInformation(resultLog);
+                cancellationToken.WaitHandle.WaitOne(TimeSpan.FromMinutes(sleepDuration));
             }
         }
 
@@ -367,13 +364,13 @@ namespace PowerConsumptionOptimizer
             double previousNetPowerProduction = 0.0;
             int desiredAmps;
 
-            while (!cancelationToken.IsCancellationRequested)
+            while (!cancellationToken.IsCancellationRequested)
             {
                 _logger.LogInformation($"Watt buffer: {_helperSettings.CurrentValue.WattBuffer}");
                 var netPowerProduction = (double)_powerProduction.GetNetPowerProduction();
                 var powerProductionChange = previousNetPowerProduction - netPowerProduction;
 
-                _logger.LogInformation($"Net Power Production Change: {Math.Abs((double)powerProductionChange)} watts");
+                _logger.LogInformation($"Net Power Production Change: {Math.Abs(powerProductionChange)} watts");
 
                 foreach (Vehicle vehicle in vehicles)
                 {
@@ -386,7 +383,7 @@ namespace PowerConsumptionOptimizer
                         vehicle.ChargeState.ChargeAmps = desiredAmps >= 5 ? desiredAmps : 5;
                     }
                 }
-                cancelationToken.WaitHandle.WaitOne(TimeSpan.FromMinutes(sleepDuration));
+                cancellationToken.WaitHandle.WaitOne(TimeSpan.FromMinutes(sleepDuration));
             }
         }
 
@@ -463,7 +460,7 @@ namespace PowerConsumptionOptimizer
                 reason.AppendLine("\t charging is stopped or complete and charge amps is not set to 5");
             }
 
-            if (changeCharging == true)
+            if (changeCharging)
             {
                 reason.AppendLine("\t all required conditions met");
             }
@@ -486,7 +483,6 @@ namespace PowerConsumptionOptimizer
         /// </summary>
         /// <param name="netPowerProduction">current net power production</param>
         /// <param name="previousNetPowerProduction">previous net power production</param>
-        /// <param name="chargerVoltage">current voltage provided by charger</param>
         /// <returns>true or false</returns>
         [Obsolete]
         internal void RefreshVehicleChargeState(Vehicle vehicle, double? previousNetPowerProduction, double? netPowerProduction)
@@ -573,7 +569,7 @@ namespace PowerConsumptionOptimizer
                     reason.AppendLine($"\t {vehicle.Name} - was given .001 priority points for currently having priority");
                 }
 
-                // give priority to vehicles with a Batterylevel < than 50
+                // give priority to vehicles with a BatteryLevel < than 50
                 if (vehicle.ChargeState.BatteryLevel < 50)
                 {
                     priorityScore += 1;
@@ -589,7 +585,7 @@ namespace PowerConsumptionOptimizer
             }
 
             if (priority.Where(v => v.Value > 0.011).Any()) {
-                var priorityVehicleId = priority.OrderByDescending(v => v.Value).First().Key;
+                var priorityVehicleId = priority.MaxBy(v => v.Value).Key;
 
                 foreach (Vehicle vehicle in vehicles)
                 {

@@ -146,7 +146,7 @@
         public bool ScheduledChargingPending { get; set; }
 
         /// <summary>
-        /// Gets or sets the scheduled charing start time.
+        /// Gets or sets the scheduled charging start time.
         /// </summary>
         [JsonProperty("scheduled_charging_start_time")]
         public string? ScheduledChargingStartTime { get; set; }
